@@ -3,7 +3,7 @@ from assistant.brain import Brain
 
 def main():
 		print("Starting Blancassist...")
-		brain = Brain()
+		brain = Brain(require_wake_word=True)
 		listener = Listener(on_phrase=brain.handle)
 
 		try:
