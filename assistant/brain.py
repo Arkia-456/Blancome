@@ -3,13 +3,14 @@ from commands.hello import HelloCommand
 from commands.music.play import PlayCommand
 from commands.music.stop import StopCommand
 from commands.music.next import NextCommand
+from commands.shopping.add import AddCommand
 
 WAKE_WORDS = ["blanco"]
 
 class Brain:
 	def __init__(self, require_wake_word: bool = False):
 		self._require_wake_word = require_wake_word
-		self._commands: list[Command] = [HelloCommand(), PlayCommand(), StopCommand(), NextCommand()]
+		self._commands: list[Command] = [HelloCommand(), PlayCommand(), StopCommand(), NextCommand(), AddCommand()]
 		print("Brain initialized with ", len(self._commands), " commands.")
 
 	def handle(self, text: str):
