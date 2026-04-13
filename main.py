@@ -7,10 +7,10 @@ def main():
 		listener = Listener(on_phrase=brain.handle)
 
 		try:
-				listener.start()
+			listener.start()
 		except KeyboardInterrupt:
-				listener.stop()
-				print("Blancassist stopped.")
+			listener.stop()
+			print("Blancassist stopped.")
 
 if __name__ == "__main__":
     main()
