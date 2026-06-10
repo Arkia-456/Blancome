@@ -50,7 +50,8 @@ class SendSmsCommand(Command):
         try:
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
-                logger.info("SMS sent successfully (%d items).", len(items))
+                SHOPPING_LIST_FILE.write_text("", encoding="utf-8")
+                logger.info("SMS sent successfully (%d items). Shopping list cleared.", len(items))
             elif response.status_code == 403:
                 logger.error("SMS failed: SMS option not enabled or invalid credentials (HTTP 403).")
             elif response.status_code == 500:
