@@ -32,7 +32,8 @@ class Brain:
 		print("No command matched for: '", text, "'")
 
 	def _strip_wake_word(self, text: str):
-		for word in WAKE_WORDS:
-			if text.startswith(word):
-				return True, text[len(word):].strip()
+		words = text.split()
+		for i, word in enumerate(words):
+			if word in WAKE_WORDS:
+				return True, " ".join(words[i + 1:]).strip()
 		return False, text
