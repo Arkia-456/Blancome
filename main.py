@@ -10,7 +10,7 @@ logging.basicConfig(
 
 def main():
     logger = logging.getLogger(__name__)
-    logger.info("Starting Blancassist...")
+    logger.info("Starting Blancome...")
     brain = Brain(require_wake_word=True)
     listener = Listener(on_phrase=brain.handle)
 
@@ -18,7 +18,7 @@ def main():
         listener.start()
     except KeyboardInterrupt:
         listener.stop()
-        logger.info("Blancassist stopped.")
+        logger.info("Blancome stopped.")
 
 if __name__ == "__main__":
     main()
