@@ -66,6 +66,13 @@ class MusicPlayer:
 				return
 			self._index = (self._index + 1) % len(self._tracks)
 			self._play_current()
+
+	def previous(self):
+		with self._lock:
+			if not self._tracks:
+				return
+			self._index = (self._index - 1) % len(self._tracks)
+			self._play_current()
 	
 	def is_playing(self) -> bool:
 		return pygame.mixer.music.get_busy()
