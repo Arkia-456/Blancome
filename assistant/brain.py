@@ -1,3 +1,4 @@
+import logging
 from commands.base import Command
 from commands.hello import HelloCommand
 from commands.music.play import PlayCommand
@@ -8,11 +9,13 @@ from commands.shopping.send_sms import SendSmsCommand
 
 WAKE_WORDS = ["blanco"]
 
+logger = logging.getLogger(__name__)
+
 class Brain:
 	def __init__(self, require_wake_word: bool = False):
 		self._require_wake_word = require_wake_word
 		self._commands: list[Command] = [HelloCommand(), PlayCommand(), StopCommand(), NextCommand(), AddCommand(), SendSmsCommand()]
-		print("Brain initialized with ", len(self._commands), " commands.")
+		logger.info("Brain initialized with %d commands.", len(self._commands))
 
 	def handle(self, text: str):
 		text = text.lower().strip()
@@ -20,17 +23,18 @@ class Brain:
 		if self._require_wake_word:
 			triggered, text = self._strip_wake_word(text)
 			if not triggered:
-				print("Wake word not detected in: '", text, "'. Ignoring.")
+				logger.debug("Wake word not detected in: '%s'. Ignoring.", text)
 				return
-			
-		print("Processing command: '", text, "'")
+
+		logger.info("Processing command: '%s'", text)
 
 		for command in self._commands:
 			if command.matches(text):
+				logger.info("Matched command: %s", type(command).__name__)
 				command.execute(text)
 				return
-		
-		print("No command matched for: '", text, "'")
+
+		logger.warning("No command matched for: '%s'", text)
 
 	def _strip_wake_word(self, text: str):
 		words = text.split()

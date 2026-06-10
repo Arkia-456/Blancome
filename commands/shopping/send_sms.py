@@ -1,9 +1,12 @@
+import logging
 import urllib.parse
 import requests
 from commands.base import Command
 from config import SHOPPING_LIST_FILE, FREE_MOBILE_USER, FREE_MOBILE_API_KEY
 
 TRIGGER_WORDS = ["envoie", "envoyer"]
+
+logger = logging.getLogger(__name__)
 
 class SendSmsCommand(Command):
     def matches(self, text: str) -> bool:
@@ -17,7 +20,7 @@ class SendSmsCommand(Command):
             with open(SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except FileNotFoundError:
-            print("La liste de courses est vide.")
+            logger.warning("Shopping list file not found at %s.", SHOPPING_LIST_FILE)
             return
 
         items = []
@@ -32,9 +35,10 @@ class SendSmsCommand(Command):
             items.append(line)
 
         if not items:
-            print("La liste de courses est vide.")
+            logger.warning("Shopping list is empty, nothing to send.")
             return
 
+        logger.info("Sending %d item(s) via Free Mobile SMS API.", len(items))
         message = "Liste de courses :\n" + "\n".join(f"- {item}" for item in items)
 
         encoded_message = urllib.parse.quote(message)
@@ -46,12 +50,12 @@ class SendSmsCommand(Command):
         try:
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
-                print("Liste envoyée par SMS.")
+                logger.info("SMS sent successfully (%d items).", len(items))
             elif response.status_code == 403:
-                print("Échec : option SMS non activée ou identifiant/clé API incorrects.")
+                logger.error("SMS failed: SMS option not enabled or invalid credentials (HTTP 403).")
             elif response.status_code == 500:
-                print("Erreur serveur Free Mobile, réessayez plus tard.")
+                logger.error("SMS failed: Free Mobile server error (HTTP 500).")
             else:
-                print(f"Échec de l'envoi SMS : HTTP {response.status_code}")
+                logger.error("SMS failed: unexpected HTTP %d.", response.status_code)
         except Exception as e:
-            print("Erreur lors de l'envoi du SMS :", e)
+            logger.error("Exception while calling Free Mobile API: %s", e)
