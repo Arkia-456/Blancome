@@ -32,7 +32,7 @@ class AddCommand(Command):
 		words = text.lower().split()
 		has_trigger = any(t in words for t in TRIGGERS)
 		has_list = any(w in text.lower() for w in LIST_WORDS)
-		return has_trigger or has_list
+		return has_trigger and has_list
 	
 	def execute(self, text: str):
 		product = self._extract_product(text.lower().strip())
