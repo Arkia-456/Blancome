@@ -41,6 +41,19 @@ class MusicPlayer:
 				return
 			self._play_current()
 
+	def pause(self):
+		with self._lock:
+			pygame.mixer.music.pause()
+			self._playing = False
+
+	def unpause(self):
+		with self._lock:
+			pygame.mixer.music.unpause()
+			self._playing = True
+
+	def is_paused(self) -> bool:
+		return self._playing and not pygame.mixer.music.get_busy()
+
 	def stop(self):
 		with self._lock:
 			pygame.mixer.music.stop()
