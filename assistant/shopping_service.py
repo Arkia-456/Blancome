@@ -8,7 +8,15 @@ logger = logging.getLogger(__name__)
 
 
 class ShoppingService:
+    def _is_configured(self) -> bool:
+        if SHOPPING_LIST_FILE is None:
+            logger.error("SHOPPING_LIST_FILE is not configured. Set it in your .env file.")
+            return False
+        return True
+
     def get_items(self) -> list[str]:
+        if not self._is_configured():
+            return []
         try:
             with open(SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
                 lines = f.readlines()
@@ -28,6 +36,8 @@ class ShoppingService:
         return items
 
     def remove_item(self, product: str):
+        if not self._is_configured():
+            return
         try:
             with open(SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
                 lines = f.readlines()
@@ -52,6 +62,8 @@ class ShoppingService:
             logger.info("Removed '%s' from shopping list.", product)
 
     def send_list(self) -> bool:
+        if not self._is_configured():
+            return False
         items = self.get_items()
         if not items:
             logger.warning("Shopping list is empty, nothing to send.")
@@ -76,6 +88,8 @@ class ShoppingService:
             return False
 
     def add_item(self, product: str):
+        if not self._is_configured():
+            return
         SHOPPING_LIST_FILE.parent.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         with open(SHOPPING_LIST_FILE, "a", encoding="utf-8") as f:

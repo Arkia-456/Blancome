@@ -23,6 +23,9 @@ class ListCommand(Command):
         return has_list and has_context
 
     def execute(self, text: str):
+        if SHOPPING_LIST_FILE is None:
+            logger.error("SHOPPING_LIST_FILE is not configured. Set it in your .env file.")
+            return
         try:
             with open(SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
                 lines = f.readlines()
