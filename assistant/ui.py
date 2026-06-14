@@ -1,19 +1,25 @@
 import ctypes
+import logging
 import sys
 import datetime
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QFileDialog, QTreeWidget, QTreeWidgetItem,
     QFrame, QHeaderView, QAbstractItemView, QSlider, QSizePolicy,
     QStyledItemDelegate, QStackedWidget, QListWidget, QListWidgetItem, QLineEdit,
+    QScrollArea,
 )
-from PyQt6.QtCore import Qt, QTimer, QSize
+from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, pyqtSignal
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont
 
 from assistant.music_service import music_service
 from assistant.shopping_service import shopping_service
+from assistant.calendar_service import calendar_service
+from assistant.microsoft_calendar_service import microsoft_calendar_service
 
 _PLUM       = "#2E1B33"
 _PLUM_SOFT  = "#4A3052"
@@ -69,6 +75,13 @@ def _frill_color(t: float) -> str:
 def _hsep() -> QFrame:
     f = QFrame()
     f.setFixedHeight(1)
+    f.setStyleSheet(f"background: {_PEARL_DEEP}; border: none;")
+    return f
+
+
+def _vsep() -> QFrame:
+    f = QFrame()
+    f.setFixedWidth(1)
     f.setStyleSheet(f"background: {_PEARL_DEEP}; border: none;")
     return f
 
@@ -320,6 +333,105 @@ QPushButton#remove_btn:hover {{
     color: {_RUBY};
 }}
 
+/* ── Calendar ───────────────────────────────────────────── */
+QPushButton#cal_nav {{
+    background: transparent;
+    border: none;
+    color: {_PLUM};
+    font-family: "Segoe UI";
+    font-size: 16pt;
+    font-weight: bold;
+    padding: 0px 8px;
+    min-width: 28px;
+}}
+QPushButton#cal_nav:hover {{
+    color: {_GOLD};
+}}
+QLabel#cal_month {{
+    color: {_PLUM};
+    font-family: Georgia;
+    font-size: 13pt;
+    font-weight: bold;
+    background: transparent;
+}}
+QLabel#cal_day_header {{
+    color: {_MUTED};
+    font-family: "Segoe UI";
+    font-size: 9pt;
+    font-weight: bold;
+    background: transparent;
+}}
+QLabel#cal_day {{
+    color: {_PLUM};
+    font-family: "Segoe UI";
+    font-size: 10pt;
+    background: transparent;
+    border-radius: 18px;
+}}
+QLabel#cal_day:hover {{
+    background: {_PEARL_DEEP};
+}}
+QLabel#cal_today {{
+    color: {_CARD};
+    font-family: "Segoe UI";
+    font-size: 10pt;
+    font-weight: bold;
+    background: {_GOLD};
+    border-radius: 18px;
+}}
+QLabel#cal_day_selected {{
+    color: {_PLUM};
+    font-family: "Segoe UI";
+    font-size: 10pt;
+    font-weight: bold;
+    background: {_PEARL_DEEP};
+    border-radius: 18px;
+}}
+QLabel#cal_detail_date {{
+    color: {_PLUM};
+    font-family: Georgia;
+    font-size: 10pt;
+    font-weight: bold;
+    background: transparent;
+}}
+
+/* ── Calendar events panel ───────────────────────────────── */
+QLabel#cal_events_title {{
+    color: {_MUTED};
+    font-family: "Segoe UI";
+    font-size: 8pt;
+    font-weight: bold;
+    letter-spacing: 1px;
+    background: transparent;
+}}
+QLabel#cal_event_group {{
+    color: {_GOLD};
+    font-family: "Segoe UI";
+    font-size: 8pt;
+    font-weight: bold;
+    background: transparent;
+    padding-top: 12px;
+    padding-bottom: 2px;
+}}
+QLabel#cal_event_name {{
+    color: {_PLUM};
+    font-family: "Segoe UI";
+    font-size: 9pt;
+    background: transparent;
+}}
+QLabel#cal_event_time {{
+    color: {_MUTED};
+    font-family: "Segoe UI";
+    font-size: 8pt;
+    background: transparent;
+}}
+QLabel#cal_placeholder {{
+    color: {_MUTED};
+    font-family: "Segoe UI";
+    font-size: 9pt;
+    background: transparent;
+}}
+
 /* ── Scrollbar ──────────────────────────────────────────── */
 QScrollBar:vertical {{
     background: {_PEARL};
@@ -471,6 +583,8 @@ class NavButton(QPushButton):
         color = QColor(_PLUM)
         if self._section == "music":
             self._draw_music(p, color)
+        elif self._section == "calendar":
+            self._draw_calendar(p, color)
         else:
             self._draw_shopping(p, color)
 
@@ -504,6 +618,24 @@ class NavButton(QPushButton):
         p.drawLine(22, 29, 34, 29)
         p.drawLine(22, 35, 30, 35)
 
+    def _draw_calendar(self, p: QPainter, color: QColor):
+        pen = QPen(color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        # Calendar outline
+        p.drawRoundedRect(15, 18, 26, 22, 2, 2)
+        # Header band
+        p.drawLine(15, 24, 41, 24)
+        # Ring hooks
+        p.drawLine(21, 15, 21, 21)
+        p.drawLine(35, 15, 35, 21)
+        # Grid dots (2x2)
+        p.setBrush(QBrush(color))
+        p.setPen(Qt.PenStyle.NoPen)
+        for col in (22, 30):
+            for row in (29, 35):
+                p.drawEllipse(col, row, 3, 3)
+
 
 class _QueueDelegate(QStyledItemDelegate):
     """Paints queue cells manually so QSS can't override per-item backgrounds."""
@@ -531,6 +663,205 @@ class _QueueDelegate(QStyledItemDelegate):
         painter.drawText(option.rect.adjusted(4, 0, -4, 0), align, text)
 
         painter.restore()
+
+
+_DOT_PURPLE = "#9B59B6"
+_DOT_YELLOW = "#F1E20F"
+_DOT_ORDER  = [_DOT_PURPLE, _DOT_YELLOW, _GOLD]  # display order: most specific first
+
+
+def _event_dot_color(summary: str) -> str:
+    name = summary.lower()
+    if "repos" in name or "congés" in name or "conges" in name:
+        return _DOT_PURPLE
+    if "hdom" in name:
+        return _DOT_YELLOW
+    return _GOLD
+
+
+class _DayLabel(QLabel):
+    """Day cell that paints a small colored dot and emits a click signal."""
+
+    clicked = pyqtSignal(object)  # datetime.date
+
+    def __init__(self, text: str, date: datetime.date,
+                 dot_colors: set | None = None, parent=None):
+        super().__init__(text, parent)
+        self._date       = date
+        self._dot_colors = dot_colors or set()
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self._date)
+        super().mousePressEvent(event)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        colors = [c for c in _DOT_ORDER if c in self._dot_colors]
+        if not colors:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        dot, gap   = 4, 2
+        total      = len(colors) * dot + (len(colors) - 1) * gap
+        x          = self.width() // 2 - total // 2
+        y          = self.height() - 7
+        is_today   = self.objectName() == "cal_today"
+        for c in colors:
+            p.setBrush(QBrush(QColor("white") if is_today else QColor(c)))
+            p.drawEllipse(x, y, dot, dot)
+            x += dot + gap
+
+
+class CalendarWidget(QWidget):
+    month_changed = pyqtSignal(int, int)   # year, month
+    day_selected  = pyqtSignal(object)     # datetime.date
+
+    _MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+    _DAYS_FR   = ["L", "M", "M", "J", "V", "S", "D"]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._today       = datetime.date.today()
+        self._year        = self._today.year
+        self._month       = self._today.month
+        self._event_dates:   dict                  = {}
+        self._selected_date: datetime.date | None  = None
+        self._setup_ui()
+
+    def set_event_dates(self, date_colors: dict):
+        self._event_dates = date_colors
+        self._rebuild()
+
+    def _setup_ui(self):
+        v = QVBoxLayout(self)
+        v.setContentsMargins(12, 16, 12, 16)
+        v.setSpacing(10)
+
+        nav = QHBoxLayout()
+        self._prev_btn = QPushButton("‹")
+        self._prev_btn.setObjectName("cal_nav")
+        self._prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._prev_btn.clicked.connect(self._prev_month)
+        self._month_label = QLabel()
+        self._month_label.setObjectName("cal_month")
+        self._month_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._next_btn = QPushButton("›")
+        self._next_btn.setObjectName("cal_nav")
+        self._next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._next_btn.clicked.connect(self._next_month)
+        nav.addWidget(self._prev_btn)
+        nav.addWidget(self._month_label, stretch=1)
+        nav.addWidget(self._next_btn)
+        v.addLayout(nav)
+
+        self._grid_container = QWidget()
+        self._grid = QGridLayout(self._grid_container)
+        self._grid.setSpacing(2)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        v.addWidget(self._grid_container)
+        v.addStretch()
+
+        self._rebuild()
+
+    def _rebuild(self):
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        self._month_label.setText(f"{self._MONTHS_FR[self._month - 1]} {self._year}")
+
+        for col, name in enumerate(self._DAYS_FR):
+            lbl = QLabel(name)
+            lbl.setObjectName("cal_day_header")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setFixedSize(46, 24)
+            self._grid.addWidget(lbl, 0, col)
+
+        first_day = datetime.date(self._year, self._month, 1)
+        start_col = first_day.weekday()
+        next_month_first = (
+            datetime.date(self._year + 1, 1, 1) if self._month == 12
+            else datetime.date(self._year, self._month + 1, 1)
+        )
+        days_in_month = (next_month_first - datetime.timedelta(days=1)).day
+
+        row, col = 1, start_col
+        for day in range(1, days_in_month + 1):
+            cell_date = datetime.date(self._year, self._month, day)
+            is_today  = (cell_date == self._today)
+            is_sel    = (cell_date == self._selected_date)
+            dot_colors = self._event_dates.get(cell_date)
+            lbl = _DayLabel(str(day), cell_date, dot_colors=dot_colors)
+            if is_today:
+                lbl.setObjectName("cal_today")
+            elif is_sel:
+                lbl.setObjectName("cal_day_selected")
+            else:
+                lbl.setObjectName("cal_day")
+            lbl.clicked.connect(self._on_day_clicked)
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setFixedSize(46, 34)
+            self._grid.addWidget(lbl, row, col)
+            col += 1
+            if col > 6:
+                col = 0
+                row += 1
+
+    def _on_day_clicked(self, date: datetime.date):
+        self._selected_date = date
+        self._rebuild()
+        self.day_selected.emit(date)
+
+    def _prev_month(self):
+        self._month -= 1
+        if self._month < 1:
+            self._month = 12
+            self._year -= 1
+        self._rebuild()
+        self.month_changed.emit(self._year, self._month)
+
+    def _next_month(self):
+        self._month += 1
+        if self._month > 12:
+            self._month = 1
+            self._year += 1
+        self._rebuild()
+        self.month_changed.emit(self._year, self._month)
+
+
+class _CalendarFetcher(QObject):
+    done  = pyqtSignal(list)
+    error = pyqtSignal(str)
+
+    def __init__(self, start: datetime.date, end: datetime.date, parent=None):
+        super().__init__(parent)
+        self._start = start
+        self._end   = end
+
+    def run(self):
+        all_events: list = []
+        errors: list     = []
+        for name, svc in [("Google", calendar_service), ("Microsoft", microsoft_calendar_service)]:
+            try:
+                all_events.extend(svc.get_events(self._start, self._end))
+            except Exception as e:
+                logger.warning("%s Calendar fetch skipped: %s", name, e)
+                errors.append(f"{name} : {e}")
+
+        if not all_events and errors:
+            self.error.emit("\n".join(errors))
+            return
+
+        all_events.sort(key=lambda e: (
+            e.get("start", {}).get("dateTime", e.get("start", {}).get("date", ""))
+        ))
+        self.done.emit(all_events)
 
 
 class MainWindow(QMainWindow):
@@ -570,6 +901,11 @@ class MainWindow(QMainWindow):
         self._clock_timer.timeout.connect(self._tick_clock)
         self._clock_timer.start(10_000)
         self._tick_clock()
+
+        self._events_timer = QTimer(self)
+        self._events_timer.timeout.connect(self._refresh_all_calendar)
+        self._events_timer.start(300_000)  # refresh every 5 minutes
+        QTimer.singleShot(0, self._refresh_all_calendar)  # initial load after UI is ready
 
     # ── Build helpers ────────────────────────────────────────────────────
 
@@ -616,8 +952,10 @@ class MainWindow(QMainWindow):
         self._nav_music = NavButton("music")
         self._nav_music.setChecked(True)
         self._nav_shopping = NavButton("shopping")
+        self._nav_calendar = NavButton("calendar")
         v.addWidget(self._nav_music)
         v.addWidget(self._nav_shopping)
+        v.addWidget(self._nav_calendar)
         v.addStretch()
         return sidebar
 
@@ -637,11 +975,13 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget()
         self._stack.addWidget(self._make_card())
         self._stack.addWidget(self._make_shopping_card())
+        self._stack.addWidget(self._make_calendar_card())
         ca.addWidget(self._stack)
         h.addWidget(card_area, stretch=1)
 
         self._nav_music.clicked.connect(lambda: self._switch_page(0))
         self._nav_shopping.clicked.connect(lambda: self._switch_page(1))
+        self._nav_calendar.clicked.connect(lambda: self._switch_page(2))
 
         return content
 
@@ -649,6 +989,7 @@ class MainWindow(QMainWindow):
         self._stack.setCurrentIndex(index)
         self._nav_music.setChecked(index == 0)
         self._nav_shopping.setChecked(index == 1)
+        self._nav_calendar.setChecked(index == 2)
         if index == 1:
             self._refresh_shopping()
 
@@ -733,6 +1074,357 @@ class MainWindow(QMainWindow):
 
         v.addWidget(body, stretch=1)
         return card
+
+    def _make_calendar_card(self) -> QFrame:
+        card = QFrame()
+        card.setObjectName("card")
+        card.setMinimumWidth(500)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        v = QVBoxLayout(card)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(0)
+
+        gold_band = QFrame()
+        gold_band.setFixedHeight(4)
+        gold_band.setStyleSheet(f"background: {_GOLD}; border: none;")
+        v.addWidget(gold_band)
+
+        head = QFrame()
+        head.setObjectName("card_head")
+        hh = QHBoxLayout(head)
+        hh.setContentsMargins(20, 14, 20, 14)
+        title = QLabel("Calendrier")
+        title.setObjectName("music_title")
+        hh.addWidget(title)
+        hh.addStretch()
+        v.addWidget(head)
+
+        v.addWidget(_hsep())
+
+        body = QWidget()
+        body.setObjectName("body")
+        bv = QVBoxLayout(body)
+        bv.setContentsMargins(0, 0, 0, 0)
+        bv.setSpacing(0)
+
+        top = QWidget()
+        top.setStyleSheet("background: transparent;")
+        bh = QHBoxLayout(top)
+        bh.setContentsMargins(0, 0, 0, 0)
+        bh.setSpacing(0)
+
+        self._cal_widget = CalendarWidget()
+        self._cal_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._cal_widget.month_changed.connect(self._on_calendar_month_changed)
+        self._cal_widget.day_selected.connect(self._on_day_selected)
+        events_panel = self._make_events_panel()
+        events_panel.setMinimumWidth(200)
+        bh.addWidget(self._cal_widget, stretch=2)
+        bh.addWidget(_vsep())
+        bh.addWidget(events_panel, stretch=1)
+
+        bv.addWidget(top, stretch=1)
+        bv.addWidget(_hsep())
+        bv.addWidget(self._make_day_detail_panel())
+
+        v.addWidget(body, stretch=1)
+        return card
+
+    def _make_events_panel(self) -> QWidget:
+        panel = QWidget()
+        panel.setObjectName("body")
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(16, 16, 16, 16)
+        v.setSpacing(0)
+
+        title = QLabel("À VENIR")
+        title.setObjectName("cal_events_title")
+        v.addWidget(title)
+        v.addSpacing(8)
+        v.addWidget(_hsep())
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: transparent;")
+
+        self._events_container = QWidget()
+        self._events_container.setStyleSheet("background: transparent;")
+        self._events_layout = QVBoxLayout(self._events_container)
+        self._events_layout.setContentsMargins(0, 4, 4, 0)
+        self._events_layout.setSpacing(0)
+        self._events_layout.addStretch()
+        scroll.setWidget(self._events_container)
+
+        v.addWidget(scroll, stretch=1)
+        return panel
+
+    def _clear_events_panel(self):
+        while self._events_layout.count() > 1:
+            item = self._events_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _refresh_all_calendar(self):
+        self._refresh_calendar_events()
+        self._refresh_month_dots(self._cal_widget._year, self._cal_widget._month)
+
+    def _refresh_calendar_events(self):
+        if hasattr(self, "_cal_thread") and self._cal_thread.isRunning():
+            return
+        self._clear_events_panel()
+        loading = QLabel("Chargement…")
+        loading.setObjectName("cal_placeholder")
+        loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._events_layout.insertWidget(0, loading)
+
+        today = datetime.date.today()
+        self._cal_fetcher = _CalendarFetcher(today, today + datetime.timedelta(days=30))
+        self._cal_thread  = QThread(self)
+        self._cal_fetcher.moveToThread(self._cal_thread)
+        self._cal_thread.started.connect(self._cal_fetcher.run)
+        self._cal_fetcher.done.connect(self._on_events_fetched)
+        self._cal_fetcher.error.connect(self._on_events_error)
+        self._cal_fetcher.done.connect(self._cal_thread.quit)
+        self._cal_fetcher.error.connect(self._cal_thread.quit)
+        self._cal_thread.finished.connect(self._cal_fetcher.deleteLater)
+        self._cal_thread.start()
+
+    def _on_events_fetched(self, events: list):
+        self._clear_events_panel()
+        if not events:
+            lbl = QLabel("Aucun événement\nà venir")
+            lbl.setObjectName("cal_placeholder")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._events_layout.insertWidget(0, lbl)
+            return
+
+        today    = datetime.date.today()
+        tomorrow = today + datetime.timedelta(days=1)
+        _day_fr  = ["Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam.", "Dim."]
+        _mon_fr  = ["jan.", "fév.", "mar.", "avr.", "mai", "juin",
+                    "juil.", "août", "sep.", "oct.", "nov.", "déc."]
+
+        current_date = None
+        pos = 0
+        for event in events:
+            start  = event.get("start", {})
+            dt_str = start.get("dateTime", start.get("date", ""))
+            if not dt_str:
+                continue
+            try:
+                if "T" in dt_str:
+                    dt         = datetime.datetime.fromisoformat(dt_str)
+                    event_date = dt.date()
+                    time_str   = dt.strftime("%H:%M")
+                    end_str    = event.get("end", {}).get("dateTime", "")
+                    if end_str:
+                        time_str += " – " + datetime.datetime.fromisoformat(end_str).strftime("%H:%M")
+                else:
+                    event_date = datetime.date.fromisoformat(dt_str)
+                    time_str   = "Toute la journée"
+            except ValueError:
+                continue
+
+            if event_date != current_date:
+                current_date = event_date
+                if event_date == today:
+                    group_text = "Aujourd'hui"
+                elif event_date == tomorrow:
+                    group_text = "Demain"
+                else:
+                    group_text = (f"{_day_fr[event_date.weekday()]} "
+                                  f"{event_date.day} {_mon_fr[event_date.month - 1]}")
+                grp = QLabel(group_text)
+                grp.setObjectName("cal_event_group")
+                self._events_layout.insertWidget(pos, grp)
+                pos += 1
+
+            row = QWidget()
+            row.setStyleSheet("background: transparent;")
+            rh = QHBoxLayout(row)
+            rh.setContentsMargins(0, 3, 0, 3)
+            rh.setSpacing(6)
+
+            dot_lbl = QLabel("●")
+            dot_lbl.setFixedWidth(10)
+            dot_lbl.setAlignment(Qt.AlignmentFlag.AlignTop)
+            dot_lbl.setStyleSheet(
+                f"color: {_event_dot_color(event.get('summary', ''))};"
+                "background: transparent; font-size: 7pt; padding-top: 2px;"
+            )
+
+            inner = QWidget()
+            inner.setStyleSheet("background: transparent;")
+            rv = QVBoxLayout(inner)
+            rv.setContentsMargins(0, 0, 0, 0)
+            rv.setSpacing(1)
+            time_lbl = QLabel(time_str)
+            time_lbl.setObjectName("cal_event_time")
+            name_lbl = QLabel(event.get("summary", "(Sans titre)"))
+            name_lbl.setObjectName("cal_event_name")
+            name_lbl.setWordWrap(True)
+            rv.addWidget(time_lbl)
+            rv.addWidget(name_lbl)
+
+            rh.addWidget(dot_lbl)
+            rh.addWidget(inner, stretch=1)
+            self._events_layout.insertWidget(pos, row)
+            pos += 1
+
+    def _on_events_error(self, message: str):
+        self._clear_events_panel()
+        lbl = QLabel(message)
+        lbl.setObjectName("cal_placeholder")
+        lbl.setWordWrap(True)
+        retry_btn = QPushButton("Réessayer")
+        retry_btn.setObjectName("load_btn")
+        retry_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        retry_btn.clicked.connect(self._refresh_calendar_events)
+        self._events_layout.insertWidget(0, retry_btn)
+        self._events_layout.insertWidget(0, lbl)
+
+    def _refresh_month_dots(self, year: int, month: int):
+        if hasattr(self, "_dots_thread") and self._dots_thread.isRunning():
+            return
+        start = datetime.date(year, month, 1)
+        end   = (datetime.date(year + 1, 1, 1) if month == 12
+                 else datetime.date(year, month + 1, 1)) - datetime.timedelta(days=1)
+        self._dots_fetcher = _CalendarFetcher(start, end)
+        self._dots_thread  = QThread(self)
+        self._dots_fetcher.moveToThread(self._dots_thread)
+        self._dots_thread.started.connect(self._dots_fetcher.run)
+        self._dots_fetcher.done.connect(self._on_dots_fetched)
+        self._dots_fetcher.done.connect(self._dots_thread.quit)
+        self._dots_fetcher.error.connect(self._dots_thread.quit)
+        self._dots_thread.finished.connect(self._dots_fetcher.deleteLater)
+        self._dots_thread.start()
+
+    def _on_dots_fetched(self, events: list):
+        self._cached_month_events = events
+        date_colors: dict = {}
+        for ev in events:
+            s  = ev.get("start", {})
+            ds = s.get("dateTime", s.get("date", ""))
+            try:
+                d = (datetime.datetime.fromisoformat(ds).date() if "T" in ds
+                     else datetime.date.fromisoformat(ds))
+            except ValueError:
+                continue
+            date_colors.setdefault(d, set()).add(_event_dot_color(ev.get("summary", "")))
+        self._cal_widget.set_event_dates(date_colors)
+
+    def _on_calendar_month_changed(self, year: int, month: int):
+        self._cached_month_events = []
+        self._detail_date_lbl.setText("")
+        while self._detail_events_layout.count() > 1:
+            item = self._detail_events_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._refresh_month_dots(year, month)
+
+    def _make_day_detail_panel(self) -> QWidget:
+        panel = QWidget()
+        panel.setFixedHeight(100)
+        panel.setStyleSheet("background: transparent;")
+        outer = QVBoxLayout(panel)
+        outer.setContentsMargins(20, 10, 20, 10)
+        outer.setSpacing(4)
+
+        self._detail_date_lbl = QLabel("")
+        self._detail_date_lbl.setObjectName("cal_detail_date")
+        outer.addWidget(self._detail_date_lbl)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: transparent;")
+
+        self._detail_events_container = QWidget()
+        self._detail_events_container.setStyleSheet("background: transparent;")
+        self._detail_events_layout = QVBoxLayout(self._detail_events_container)
+        self._detail_events_layout.setContentsMargins(0, 0, 4, 0)
+        self._detail_events_layout.setSpacing(0)
+        self._detail_events_layout.addStretch()
+        scroll.setWidget(self._detail_events_container)
+
+        outer.addWidget(scroll, stretch=1)
+        return panel
+
+    def _on_day_selected(self, date: datetime.date):
+        _day_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+        _mon_fr = ["janvier", "février", "mars", "avril", "mai", "juin",
+                   "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+        self._detail_date_lbl.setText(
+            f"{_day_fr[date.weekday()]} {date.day} {_mon_fr[date.month - 1]} {date.year}"
+        )
+
+        while self._detail_events_layout.count() > 1:
+            item = self._detail_events_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        day_events = []
+        for ev in getattr(self, "_cached_month_events", []):
+            s  = ev.get("start", {})
+            ds = s.get("dateTime", s.get("date", ""))
+            try:
+                d = (datetime.datetime.fromisoformat(ds).date() if "T" in ds
+                     else datetime.date.fromisoformat(ds))
+                if d == date:
+                    day_events.append(ev)
+            except ValueError:
+                pass
+
+        if not day_events:
+            lbl = QLabel("Aucun événement")
+            lbl.setObjectName("cal_placeholder")
+            self._detail_events_layout.insertWidget(0, lbl)
+            return
+
+        for i, ev in enumerate(day_events):
+            s  = ev.get("start", {})
+            ds = s.get("dateTime", s.get("date", ""))
+            try:
+                if "T" in ds:
+                    dt       = datetime.datetime.fromisoformat(ds)
+                    time_str = dt.strftime("%H:%M")
+                    end_ds   = ev.get("end", {}).get("dateTime", "")
+                    if end_ds:
+                        time_str += " – " + datetime.datetime.fromisoformat(end_ds).strftime("%H:%M")
+                else:
+                    time_str = "Toute la journée"
+            except ValueError:
+                time_str = ""
+
+            row = QWidget()
+            row.setStyleSheet("background: transparent;")
+            rv = QHBoxLayout(row)
+            rv.setContentsMargins(0, 1, 0, 1)
+            rv.setSpacing(6)
+
+            dot_lbl = QLabel("●")
+            dot_lbl.setFixedWidth(10)
+            dot_lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+            dot_lbl.setStyleSheet(
+                f"color: {_event_dot_color(ev.get('summary', ''))};"
+                "background: transparent; font-size: 7pt;"
+            )
+
+            time_lbl = QLabel(time_str)
+            time_lbl.setObjectName("cal_event_time")
+            time_lbl.setFixedWidth(100)
+            name_lbl = QLabel(ev.get("summary", "(Sans titre)"))
+            name_lbl.setObjectName("cal_event_name")
+            name_lbl.setWordWrap(True)
+
+            rv.addWidget(dot_lbl)
+            rv.addWidget(time_lbl)
+            rv.addWidget(name_lbl, stretch=1)
+            self._detail_events_layout.insertWidget(i, row)
 
     def _make_card_head(self) -> QFrame:
         frame = QFrame()
