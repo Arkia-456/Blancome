@@ -89,14 +89,16 @@ def _vsep() -> QFrame:
 class FrillWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(26)
+        self.setFixedHeight(40)
 
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         w = self.width()
+        h = self.height()
         s = w / 1200
-        pts = [(int(x * s), y) for x, y in _FRILL_RAW]
+        sy = h / 26
+        pts = [(int(x * s), int(y * sy)) for x, y in _FRILL_RAW]
 
         path = QPainterPath()
         path.moveTo(0, 0)
@@ -108,7 +110,7 @@ class FrillWidget(QWidget):
 
         n = len(pts)
         for i in range(n - 1):
-            pen = QPen(QColor(_frill_color(i / (n - 2))), 2,
+            pen = QPen(QColor(_frill_color(i / (n - 2))), 3,
                        Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
             p.setPen(pen)
             p.drawLine(pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1])
@@ -130,27 +132,27 @@ QFrame#header {{
 QLabel#app_name {{
     color: {_PEARL};
     font-family: Georgia;
-    font-size: 20pt;
+    font-size: 28pt;
     font-weight: bold;
     background: transparent;
 }}
 QLabel#tagline {{
     color: {_GOLD};
     font-family: "Segoe UI";
-    font-size: 8pt;
+    font-size: 12pt;
     letter-spacing: 1px;
     background: transparent;
 }}
 QLabel#clock {{
     color: {_PEARL};
     font-family: Consolas;
-    font-size: 18pt;
+    font-size: 26pt;
     background: transparent;
 }}
 QLabel#date_lbl {{
     color: {_DATE_FG};
     font-family: "Segoe UI";
-    font-size: 10pt;
+    font-size: 14pt;
     background: transparent;
 }}
 
@@ -174,14 +176,14 @@ QFrame#card_head {{
 QLabel#hearth_eye {{
     color: {_GOLD};
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
     font-weight: bold;
     background: transparent;
 }}
 QLabel#music_title {{
     color: {_PLUM};
     font-family: Georgia;
-    font-size: 18pt;
+    font-size: 26pt;
     font-weight: bold;
     background: transparent;
 }}
@@ -190,9 +192,9 @@ QPushButton#load_btn {{
     color: {_PLUM_SOFT};
     border: 1px solid {_PEARL_DEEP};
     border-radius: 4px;
-    padding: 4px 10px;
+    padding: 6px 15px;
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
 }}
 QPushButton#load_btn:hover {{
     background-color: {_PEARL_DEEP};
@@ -202,57 +204,57 @@ QPushButton#load_btn:hover {{
 QLabel#now_playing_lbl {{
     color: {_AZURE_DEEP};
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
     font-weight: bold;
     background: transparent;
 }}
 QLabel#track_title {{
     color: {_PLUM};
     font-family: Georgia;
-    font-size: 17pt;
+    font-size: 25pt;
     font-weight: bold;
     background: transparent;
 }}
 QLabel#track_artist {{
     color: {_PLUM_SOFT};
     font-family: "Segoe UI";
-    font-size: 11pt;
+    font-size: 16pt;
     background: transparent;
 }}
 QLabel#track_album {{
     color: {_MUTED};
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
     font-style: italic;
     background: transparent;
 }}
 QLabel#time_lbl {{
     color: {_PLUM_SOFT};
     font-family: Consolas;
-    font-size: 10pt;
+    font-size: 14pt;
     background: transparent;
-    min-width: 36px;
+    min-width: 54px;
 }}
 
 /* ── Progress slider ────────────────────────────────────── */
 QSlider#progress::groove:horizontal {{
     background: {_PEARL_DEEP};
-    height: 4px;
-    border-radius: 2px;
+    height: 6px;
+    border-radius: 3px;
     margin: 0px;
 }}
 QSlider#progress::sub-page:horizontal {{
     background: {_GOLD};
-    height: 4px;
-    border-radius: 2px;
+    height: 6px;
+    border-radius: 3px;
 }}
 QSlider#progress::handle:horizontal {{
     background: {_GOLD};
-    border: 2px solid {_CARD};
-    width: 12px;
-    height: 12px;
-    margin: -4px 0px;
-    border-radius: 6px;
+    border: 3px solid {_CARD};
+    width: 18px;
+    height: 18px;
+    margin: -6px 0px;
+    border-radius: 9px;
 }}
 
 /* ── Controls (custom-painted — no QSS needed) ──────────── */
@@ -263,14 +265,14 @@ QTreeWidget#queue {{
     border: none;
     outline: 0;
     font-family: "Segoe UI";
-    font-size: 10pt;
+    font-size: 14pt;
     color: {_PLUM};
     show-decoration-selected: 0;
 }}
 QTreeWidget#queue::item {{
-    height: 28px;
+    height: 42px;
     border: none;
-    padding: 0px 4px;
+    padding: 0px 6px;
 }}
 QTreeWidget#queue::item:selected,
 QTreeWidget#queue::item:selected:active {{
@@ -281,10 +283,10 @@ QHeaderView::section {{
     background-color: {_CARD};
     color: {_MUTED};
     font-family: "Segoe UI";
-    font-size: 8pt;
+    font-size: 12pt;
     border: none;
     border-bottom: 1px solid {_PEARL_DEEP};
-    padding: 2px 4px;
+    padding: 3px 6px;
 }}
 
 /* ── Shopping ───────────────────────────────────────────── */
@@ -293,13 +295,13 @@ QListWidget#shopping_list {{
     border: none;
     outline: 0;
     font-family: "Segoe UI";
-    font-size: 10pt;
+    font-size: 14pt;
     color: {_PLUM};
 }}
 QListWidget#shopping_list::item {{
-    height: 32px;
+    height: 48px;
     border-bottom: 1px solid {_PEARL_DEEP};
-    padding: 0px 4px;
+    padding: 0px 6px;
 }}
 QListWidget#shopping_list::item:selected,
 QListWidget#shopping_list::item:selected:active {{
@@ -311,9 +313,9 @@ QLineEdit#product_input {{
     color: {_PLUM};
     border: 1px solid {_PEARL_DEEP};
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 6px 12px;
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
 }}
 QLineEdit#product_input:focus {{
     border-color: {_GOLD};
@@ -323,9 +325,9 @@ QPushButton#remove_btn {{
     background: transparent;
     color: {_MUTED};
     border: none;
-    border-radius: 10px;
+    border-radius: 15px;
     font-family: "Segoe UI";
-    font-size: 13pt;
+    font-size: 19pt;
     font-weight: bold;
     padding: 0px;
 }}
@@ -339,10 +341,10 @@ QPushButton#cal_nav {{
     border: none;
     color: {_PLUM};
     font-family: "Segoe UI";
-    font-size: 16pt;
+    font-size: 24pt;
     font-weight: bold;
-    padding: 0px 8px;
-    min-width: 28px;
+    padding: 0px 12px;
+    min-width: 42px;
 }}
 QPushButton#cal_nav:hover {{
     color: {_GOLD};
@@ -350,23 +352,23 @@ QPushButton#cal_nav:hover {{
 QLabel#cal_month {{
     color: {_PLUM};
     font-family: Georgia;
-    font-size: 13pt;
+    font-size: 19pt;
     font-weight: bold;
     background: transparent;
 }}
 QLabel#cal_day_header {{
     color: {_MUTED};
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
     font-weight: bold;
     background: transparent;
 }}
 QLabel#cal_day {{
     color: {_PLUM};
     font-family: "Segoe UI";
-    font-size: 10pt;
+    font-size: 14pt;
     background: transparent;
-    border-radius: 18px;
+    border-radius: 27px;
 }}
 QLabel#cal_day:hover {{
     background: {_PEARL_DEEP};
@@ -374,23 +376,23 @@ QLabel#cal_day:hover {{
 QLabel#cal_today {{
     color: {_CARD};
     font-family: "Segoe UI";
-    font-size: 10pt;
+    font-size: 14pt;
     font-weight: bold;
     background: {_GOLD};
-    border-radius: 18px;
+    border-radius: 27px;
 }}
 QLabel#cal_day_selected {{
     color: {_PLUM};
     font-family: "Segoe UI";
-    font-size: 10pt;
+    font-size: 14pt;
     font-weight: bold;
     background: {_PEARL_DEEP};
-    border-radius: 18px;
+    border-radius: 27px;
 }}
 QLabel#cal_detail_date {{
     color: {_PLUM};
     font-family: Georgia;
-    font-size: 10pt;
+    font-size: 14pt;
     font-weight: bold;
     background: transparent;
 }}
@@ -399,7 +401,7 @@ QLabel#cal_detail_date {{
 QLabel#cal_events_title {{
     color: {_MUTED};
     font-family: "Segoe UI";
-    font-size: 8pt;
+    font-size: 12pt;
     font-weight: bold;
     letter-spacing: 1px;
     background: transparent;
@@ -407,42 +409,42 @@ QLabel#cal_events_title {{
 QLabel#cal_event_group {{
     color: {_GOLD};
     font-family: "Segoe UI";
-    font-size: 8pt;
+    font-size: 12pt;
     font-weight: bold;
     background: transparent;
-    padding-top: 12px;
-    padding-bottom: 2px;
+    padding-top: 18px;
+    padding-bottom: 3px;
 }}
 QLabel#cal_event_name {{
     color: {_PLUM};
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
     background: transparent;
 }}
 QLabel#cal_event_time {{
     color: {_MUTED};
     font-family: "Segoe UI";
-    font-size: 8pt;
+    font-size: 12pt;
     background: transparent;
 }}
 QLabel#cal_placeholder {{
     color: {_MUTED};
     font-family: "Segoe UI";
-    font-size: 9pt;
+    font-size: 13pt;
     background: transparent;
 }}
 
 /* ── Scrollbar ──────────────────────────────────────────── */
 QScrollBar:vertical {{
     background: {_PEARL};
-    width: 8px;
+    width: 12px;
     border: none;
     margin: 0px;
 }}
 QScrollBar::handle:vertical {{
     background: {_PEARL_DEEP};
-    border-radius: 4px;
-    min-height: 20px;
+    border-radius: 6px;
+    min-height: 30px;
 }}
 QScrollBar::handle:vertical:hover {{
     background: {_MUTED};
@@ -462,7 +464,7 @@ class PlayButton(QPushButton):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._playing = False
-        self.setFixedSize(80, 80)
+        self.setFixedSize(120, 120)
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -474,7 +476,7 @@ class PlayButton(QPushButton):
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        cx, cy, r_btn, r_glow = 40, 40, 30, 38
+        cx, cy, r_btn, r_glow = 60, 60, 45, 57
 
         # Gold halo
         glow = QRadialGradient(float(cx), float(cy), float(r_glow))
@@ -489,7 +491,7 @@ class PlayButton(QPushButton):
 
         # Circle
         fill = QColor(_RUBY_DEEP) if self.underMouse() else QColor(_RUBY)
-        p.setPen(QPen(QColor(_GOLD), 2.5))
+        p.setPen(QPen(QColor(_GOLD), 3.5))
         p.setBrush(QBrush(fill))
         p.drawEllipse(cx - r_btn, cy - r_btn, r_btn * 2, r_btn * 2)
 
@@ -497,15 +499,15 @@ class PlayButton(QPushButton):
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QBrush(QColor("white")))
         if self._playing:
-            # Pause: two vertical bars  (5 × 20 px each, 6 px gap, centred at 40,40)
-            p.drawRoundedRect(32, 30, 5, 20, 2, 2)
-            p.drawRoundedRect(43, 30, 5, 20, 2, 2)
+            # Pause: two vertical bars (centred at 60,60)
+            p.drawRoundedRect(48, 45, 8, 30, 3, 3)
+            p.drawRoundedRect(65, 45, 8, 30, 3, 3)
         else:
             # Play: right-pointing triangle (shifted +1 px right for visual balance)
             tri = QPainterPath()
-            tri.moveTo(35, 30)
-            tri.lineTo(35, 50)
-            tri.lineTo(52, 40)
+            tri.moveTo(53, 45)
+            tri.lineTo(53, 75)
+            tri.lineTo(78, 60)
             tri.closeSubpath()
             p.drawPath(tri)
 
@@ -516,7 +518,7 @@ class SkipButton(QPushButton):
     def __init__(self, forward: bool, parent=None):
         super().__init__(parent)
         self._forward = forward
-        self.setFixedSize(44, 44)
+        self.setFixedSize(66, 66)
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -534,25 +536,25 @@ class SkipButton(QPushButton):
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QBrush(color))
 
-        # Icon: 16 px wide × 14 px tall, centred in 44×44 widget
-        # y band: 15→29  |  x band: 14→30
-        bw, bh, tw, gap = 3, 14, 11, 2  # bar width/height, triangle width, gap
-        x0 = 14  # left edge (22 − 8)
+        # Icon: scaled 1.5× centred in 66×66 widget
+        # y band: 23→44  |  x band: 21→46
+        bw, bh, tw, gap = 5, 21, 16, 3  # bar width/height, triangle width, gap
+        x0 = 21  # left edge
 
         if self._forward:
             tri = QPainterPath()
-            tri.moveTo(x0,        15)
-            tri.lineTo(x0,        29)
-            tri.lineTo(x0 + tw,   22)
+            tri.moveTo(x0,        23)
+            tri.lineTo(x0,        44)
+            tri.lineTo(x0 + tw,   33)
             tri.closeSubpath()
             p.drawPath(tri)
-            p.drawRect(x0 + tw + gap, 15, bw, bh)
+            p.drawRect(x0 + tw + gap, 23, bw, bh)
         else:
-            p.drawRect(x0, 15, bw, bh)
+            p.drawRect(x0, 23, bw, bh)
             tri = QPainterPath()
-            tri.moveTo(x0 + bw + gap + tw, 15)
-            tri.lineTo(x0 + bw + gap + tw, 29)
-            tri.lineTo(x0 + bw + gap,      22)
+            tri.moveTo(x0 + bw + gap + tw, 23)
+            tri.lineTo(x0 + bw + gap + tw, 44)
+            tri.lineTo(x0 + bw + gap,      33)
             tri.closeSubpath()
             p.drawPath(tri)
 
@@ -563,7 +565,7 @@ class NavButton(QPushButton):
     def __init__(self, section: str, parent=None):
         super().__init__(parent)
         self._section = section
-        self.setFixedSize(56, 56)
+        self.setFixedSize(84, 84)
         self.setCheckable(True)
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -571,7 +573,7 @@ class NavButton(QPushButton):
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        cx, cy, r = self.width() // 2, self.height() // 2, 22
+        cx, cy, r = self.width() // 2, self.height() // 2, 33
         p.setPen(Qt.PenStyle.NoPen)
         if self.isChecked():
             p.setBrush(QBrush(QColor("#C8BA95")))
@@ -592,49 +594,49 @@ class NavButton(QPushButton):
         p.setBrush(QBrush(color))
         p.setPen(Qt.PenStyle.NoPen)
         # Note head 1 (left)
-        p.save(); p.translate(21, 37); p.rotate(-20)
-        p.drawEllipse(-6, -4, 12, 8)
+        p.save(); p.translate(32, 56); p.rotate(-20)
+        p.drawEllipse(-9, -6, 18, 12)
         p.restore()
         # Note head 2 (right)
-        p.save(); p.translate(36, 34); p.rotate(-20)
-        p.drawEllipse(-6, -4, 12, 8)
+        p.save(); p.translate(54, 51); p.rotate(-20)
+        p.drawEllipse(-9, -6, 18, 12)
         p.restore()
         # Stems + connecting beam
-        pen = QPen(color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        pen = QPen(color, 3.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawLine(26, 34, 26, 18)
-        p.drawLine(41, 31, 41, 15)
-        p.drawLine(26, 18, 41, 15)
+        p.drawLine(39, 51, 39, 27)
+        p.drawLine(62, 47, 62, 23)
+        p.drawLine(39, 27, 62, 23)
 
     def _draw_shopping(self, p: QPainter, color: QColor):
-        pen = QPen(color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        pen = QPen(color, 3.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
         # Document outline
-        p.drawRoundedRect(17, 16, 22, 24, 2, 2)
+        p.drawRoundedRect(26, 24, 33, 36, 3, 3)
         # Three list lines
-        p.drawLine(22, 23, 34, 23)
-        p.drawLine(22, 29, 34, 29)
-        p.drawLine(22, 35, 30, 35)
+        p.drawLine(33, 35, 51, 35)
+        p.drawLine(33, 44, 51, 44)
+        p.drawLine(33, 53, 45, 53)
 
     def _draw_calendar(self, p: QPainter, color: QColor):
-        pen = QPen(color, 2.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        pen = QPen(color, 3.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
         # Calendar outline
-        p.drawRoundedRect(15, 18, 26, 22, 2, 2)
+        p.drawRoundedRect(23, 27, 39, 33, 3, 3)
         # Header band
-        p.drawLine(15, 24, 41, 24)
+        p.drawLine(23, 36, 62, 36)
         # Ring hooks
-        p.drawLine(21, 15, 21, 21)
-        p.drawLine(35, 15, 35, 21)
+        p.drawLine(32, 23, 32, 32)
+        p.drawLine(53, 23, 53, 32)
         # Grid dots (2x2)
         p.setBrush(QBrush(color))
         p.setPen(Qt.PenStyle.NoPen)
-        for col in (22, 30):
-            for row in (29, 35):
-                p.drawEllipse(col, row, 3, 3)
+        for col in (33, 45):
+            for row in (44, 53):
+                p.drawEllipse(col, row, 5, 5)
 
 
 class _QueueDelegate(QStyledItemDelegate):
@@ -705,10 +707,10 @@ class _DayLabel(QLabel):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
-        dot, gap   = 4, 2
+        dot, gap   = 6, 3
         total      = len(colors) * dot + (len(colors) - 1) * gap
         x          = self.width() // 2 - total // 2
-        y          = self.height() - 7
+        y          = self.height() - 10
         is_today   = self.objectName() == "cal_today"
         for c in colors:
             p.setBrush(QBrush(QColor("white") if is_today else QColor(c)))
@@ -739,8 +741,8 @@ class CalendarWidget(QWidget):
 
     def _setup_ui(self):
         v = QVBoxLayout(self)
-        v.setContentsMargins(12, 16, 12, 16)
-        v.setSpacing(10)
+        v.setContentsMargins(18, 24, 18, 24)
+        v.setSpacing(15)
 
         nav = QHBoxLayout()
         self._prev_btn = QPushButton("‹")
@@ -761,7 +763,7 @@ class CalendarWidget(QWidget):
 
         self._grid_container = QWidget()
         self._grid = QGridLayout(self._grid_container)
-        self._grid.setSpacing(2)
+        self._grid.setSpacing(3)
         self._grid.setContentsMargins(0, 0, 0, 0)
         v.addWidget(self._grid_container)
         v.addStretch()
@@ -780,7 +782,7 @@ class CalendarWidget(QWidget):
             lbl = QLabel(name)
             lbl.setObjectName("cal_day_header")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setFixedSize(46, 24)
+            lbl.setFixedSize(69, 36)
             self._grid.addWidget(lbl, 0, col)
 
         first_day = datetime.date(self._year, self._month, 1)
@@ -806,7 +808,7 @@ class CalendarWidget(QWidget):
                 lbl.setObjectName("cal_day")
             lbl.clicked.connect(self._on_day_clicked)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setFixedSize(46, 34)
+            lbl.setFixedSize(69, 51)
             self._grid.addWidget(lbl, row, col)
             col += 1
             if col > 6:
@@ -914,10 +916,10 @@ class MainWindow(QMainWindow):
         header.setObjectName("header")
 
         h = QHBoxLayout(header)
-        h.setContentsMargins(40, 22, 40, 22)
+        h.setContentsMargins(60, 33, 60, 33)
 
         left = QVBoxLayout()
-        left.setSpacing(4)
+        left.setSpacing(6)
         app_name = QLabel("Blancome")
         app_name.setObjectName("app_name")
         tagline = QLabel("YOUR HOME, ATTENDED")
@@ -926,7 +928,7 @@ class MainWindow(QMainWindow):
         left.addWidget(tagline)
 
         right = QVBoxLayout()
-        right.setSpacing(3)
+        right.setSpacing(5)
         right.setAlignment(Qt.AlignmentFlag.AlignRight)
         self._clock_lbl = QLabel()
         self._clock_lbl.setObjectName("clock")
@@ -945,10 +947,10 @@ class MainWindow(QMainWindow):
     def _make_sidebar(self) -> QWidget:
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(56)
+        sidebar.setFixedWidth(84)
         v = QVBoxLayout(sidebar)
-        v.setContentsMargins(0, 8, 0, 8)
-        v.setSpacing(4)
+        v.setContentsMargins(0, 12, 0, 12)
+        v.setSpacing(6)
         self._nav_music = NavButton("music")
         self._nav_music.setChecked(True)
         self._nav_shopping = NavButton("shopping")
@@ -971,7 +973,7 @@ class MainWindow(QMainWindow):
         card_area = QWidget()
         card_area.setObjectName("card_area")
         ca = QHBoxLayout(card_area)
-        ca.setContentsMargins(24, 16, 24, 16)
+        ca.setContentsMargins(36, 24, 36, 24)
         self._stack = QStackedWidget()
         self._stack.addWidget(self._make_card())
         self._stack.addWidget(self._make_shopping_card())
@@ -1004,7 +1006,7 @@ class MainWindow(QMainWindow):
         v.setSpacing(0)
 
         gold_band = QFrame()
-        gold_band.setFixedHeight(4)
+        gold_band.setFixedHeight(6)
         gold_band.setStyleSheet(f"background: {_GOLD}; border: none;")
         v.addWidget(gold_band)
         v.addWidget(self._make_card_head())
@@ -1023,14 +1025,14 @@ class MainWindow(QMainWindow):
         v.setSpacing(0)
 
         gold_band = QFrame()
-        gold_band.setFixedHeight(4)
+        gold_band.setFixedHeight(6)
         gold_band.setStyleSheet(f"background: {_GOLD}; border: none;")
         v.addWidget(gold_band)
 
         head = QFrame()
         head.setObjectName("card_head")
         hh = QHBoxLayout(head)
-        hh.setContentsMargins(20, 14, 20, 14)
+        hh.setContentsMargins(30, 21, 30, 21)
         title = QLabel("Liste de courses")
         title.setObjectName("music_title")
         hh.addWidget(title)
@@ -1047,19 +1049,19 @@ class MainWindow(QMainWindow):
         body = QWidget()
         body.setObjectName("body")
         bv = QVBoxLayout(body)
-        bv.setContentsMargins(20, 16, 20, 16)
+        bv.setContentsMargins(30, 24, 30, 24)
         bv.setSpacing(0)
 
         self._shopping_list = QListWidget()
         self._shopping_list.setObjectName("shopping_list")
         bv.addWidget(self._shopping_list, stretch=1)
 
-        bv.addSpacing(10)
+        bv.addSpacing(15)
         bv.addWidget(_hsep())
-        bv.addSpacing(10)
+        bv.addSpacing(15)
 
         add_row = QHBoxLayout()
-        add_row.setSpacing(8)
+        add_row.setSpacing(12)
         self._product_input = QLineEdit()
         self._product_input.setObjectName("product_input")
         self._product_input.setPlaceholderText("Nom du produit…")
@@ -1086,14 +1088,14 @@ class MainWindow(QMainWindow):
         v.setSpacing(0)
 
         gold_band = QFrame()
-        gold_band.setFixedHeight(4)
+        gold_band.setFixedHeight(6)
         gold_band.setStyleSheet(f"background: {_GOLD}; border: none;")
         v.addWidget(gold_band)
 
         head = QFrame()
         head.setObjectName("card_head")
         hh = QHBoxLayout(head)
-        hh.setContentsMargins(20, 14, 20, 14)
+        hh.setContentsMargins(30, 21, 30, 21)
         title = QLabel("Calendrier")
         title.setObjectName("music_title")
         hh.addWidget(title)
@@ -1135,13 +1137,13 @@ class MainWindow(QMainWindow):
         panel = QWidget()
         panel.setObjectName("body")
         v = QVBoxLayout(panel)
-        v.setContentsMargins(16, 16, 16, 16)
+        v.setContentsMargins(24, 24, 24, 24)
         v.setSpacing(0)
 
         title = QLabel("À VENIR")
         title.setObjectName("cal_events_title")
         v.addWidget(title)
-        v.addSpacing(8)
+        v.addSpacing(12)
         v.addWidget(_hsep())
 
         scroll = QScrollArea()
@@ -1153,7 +1155,7 @@ class MainWindow(QMainWindow):
         self._events_container = QWidget()
         self._events_container.setStyleSheet("background: transparent;")
         self._events_layout = QVBoxLayout(self._events_container)
-        self._events_layout.setContentsMargins(0, 4, 4, 0)
+        self._events_layout.setContentsMargins(0, 6, 6, 0)
         self._events_layout.setSpacing(0)
         self._events_layout.addStretch()
         scroll.setWidget(self._events_container)
@@ -1249,11 +1251,11 @@ class MainWindow(QMainWindow):
             rh.setSpacing(6)
 
             dot_lbl = QLabel("●")
-            dot_lbl.setFixedWidth(10)
+            dot_lbl.setFixedWidth(15)
             dot_lbl.setAlignment(Qt.AlignmentFlag.AlignTop)
             dot_lbl.setStyleSheet(
                 f"color: {_event_dot_color(event.get('summary', ''))};"
-                "background: transparent; font-size: 7pt; padding-top: 2px;"
+                "background: transparent; font-size: 10pt; padding-top: 2px;"
             )
 
             inner = QWidget()
@@ -1327,11 +1329,11 @@ class MainWindow(QMainWindow):
 
     def _make_day_detail_panel(self) -> QWidget:
         panel = QWidget()
-        panel.setFixedHeight(100)
+        panel.setFixedHeight(150)
         panel.setStyleSheet("background: transparent;")
         outer = QVBoxLayout(panel)
-        outer.setContentsMargins(20, 10, 20, 10)
-        outer.setSpacing(4)
+        outer.setContentsMargins(30, 15, 30, 15)
+        outer.setSpacing(6)
 
         self._detail_date_lbl = QLabel("")
         self._detail_date_lbl.setObjectName("cal_detail_date")
@@ -1346,7 +1348,7 @@ class MainWindow(QMainWindow):
         self._detail_events_container = QWidget()
         self._detail_events_container.setStyleSheet("background: transparent;")
         self._detail_events_layout = QVBoxLayout(self._detail_events_container)
-        self._detail_events_layout.setContentsMargins(0, 0, 4, 0)
+        self._detail_events_layout.setContentsMargins(0, 0, 6, 0)
         self._detail_events_layout.setSpacing(0)
         self._detail_events_layout.addStretch()
         scroll.setWidget(self._detail_events_container)
@@ -1407,16 +1409,16 @@ class MainWindow(QMainWindow):
             rv.setSpacing(6)
 
             dot_lbl = QLabel("●")
-            dot_lbl.setFixedWidth(10)
+            dot_lbl.setFixedWidth(15)
             dot_lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter)
             dot_lbl.setStyleSheet(
                 f"color: {_event_dot_color(ev.get('summary', ''))};"
-                "background: transparent; font-size: 7pt;"
+                "background: transparent; font-size: 10pt;"
             )
 
             time_lbl = QLabel(time_str)
             time_lbl.setObjectName("cal_event_time")
-            time_lbl.setFixedWidth(100)
+            time_lbl.setFixedWidth(150)
             name_lbl = QLabel(ev.get("summary", "(Sans titre)"))
             name_lbl.setObjectName("cal_event_name")
             name_lbl.setWordWrap(True)
@@ -1431,7 +1433,7 @@ class MainWindow(QMainWindow):
         frame.setObjectName("card_head")
 
         h = QHBoxLayout(frame)
-        h.setContentsMargins(20, 14, 20, 14)
+        h.setContentsMargins(30, 21, 30, 21)
 
         title = QLabel("Musique")
         title.setObjectName("music_title")
@@ -1456,7 +1458,7 @@ class MainWindow(QMainWindow):
         body.setObjectName("body")
 
         v = QVBoxLayout(body)
-        v.setContentsMargins(20, 16, 20, 16)
+        v.setContentsMargins(30, 24, 30, 24)
         v.setSpacing(0)
 
         now_lbl = QLabel("EN COURS")
@@ -1467,37 +1469,37 @@ class MainWindow(QMainWindow):
         self._title_lbl.setObjectName("track_title")
         self._title_lbl.setWordWrap(True)
         v.addWidget(self._title_lbl)
-        v.addSpacing(4)
+        v.addSpacing(6)
 
         self._artist_lbl = QLabel("—")
         self._artist_lbl.setObjectName("track_artist")
         self._artist_lbl.setWordWrap(True)
         v.addWidget(self._artist_lbl)
-        v.addSpacing(2)
+        v.addSpacing(3)
 
         self._album_lbl = QLabel()
         self._album_lbl.setObjectName("track_album")
         self._album_lbl.setWordWrap(True)
         v.addWidget(self._album_lbl)
-        v.addSpacing(12)
+        v.addSpacing(18)
 
         v.addLayout(self._make_progress_row())
-        v.addSpacing(8)
+        v.addSpacing(12)
         v.addLayout(self._make_controls_row())
-        v.addSpacing(14)
+        v.addSpacing(21)
         v.addWidget(_hsep())
-        v.addSpacing(4)
+        v.addSpacing(6)
         v.addWidget(self._make_queue(), stretch=1)
         return body
 
     def _make_progress_row(self) -> QHBoxLayout:
         h = QHBoxLayout()
-        h.setSpacing(10)
+        h.setSpacing(15)
 
         self._cur_lbl = QLabel("0:00")
         self._cur_lbl.setObjectName("time_lbl")
         self._cur_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self._cur_lbl.setFixedWidth(36)
+        self._cur_lbl.setFixedWidth(54)
 
         self._slider = QSlider(Qt.Orientation.Horizontal)
         self._slider.setObjectName("progress")
@@ -1508,7 +1510,7 @@ class MainWindow(QMainWindow):
         self._dur_lbl = QLabel("0:00")
         self._dur_lbl.setObjectName("time_lbl")
         self._dur_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self._dur_lbl.setFixedWidth(36)
+        self._dur_lbl.setFixedWidth(54)
 
         h.addWidget(self._cur_lbl)
         h.addWidget(self._slider)
@@ -1518,7 +1520,7 @@ class MainWindow(QMainWindow):
     def _make_controls_row(self) -> QHBoxLayout:
         h = QHBoxLayout()
         h.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        h.setSpacing(8)
+        h.setSpacing(12)
 
         self._prev_btn = SkipButton(forward=False)
         self._prev_btn.clicked.connect(music_service.previous)
@@ -1544,8 +1546,8 @@ class MainWindow(QMainWindow):
         tv.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         tv.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         tv.header().setStretchLastSection(False)
-        tv.setColumnWidth(0, 36)
-        tv.setColumnWidth(2, 52)
+        tv.setColumnWidth(0, 54)
+        tv.setColumnWidth(2, 78)
         tv.setRootIsDecorated(False)
         tv.setUniformRowHeights(True)
         tv.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -1588,24 +1590,24 @@ class MainWindow(QMainWindow):
 
     def _add_list_row(self, text: str):
         item = QListWidgetItem(self._shopping_list)
-        item.setSizeHint(QSize(0, 36))
+        item.setSizeHint(QSize(0, 54))
 
         row = QWidget()
         row.setStyleSheet("background: transparent;")
         h = QHBoxLayout(row)
-        h.setContentsMargins(8, 0, 4, 0)
-        h.setSpacing(8)
+        h.setContentsMargins(12, 0, 6, 0)
+        h.setSpacing(12)
 
         btn = QPushButton("×")
         btn.setObjectName("remove_btn")
-        btn.setFixedSize(22, 22)
+        btn.setFixedSize(33, 33)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(lambda checked, t=text: self._remove_product(t))
         h.addWidget(btn)
 
         lbl = QLabel(text)
         lbl.setStyleSheet(
-            f"color: {_PLUM}; font-family: 'Segoe UI'; font-size: 10pt; background: transparent;"
+            f"color: {_PLUM}; font-family: 'Segoe UI'; font-size: 14pt; background: transparent;"
         )
         h.addWidget(lbl, stretch=1)
 
