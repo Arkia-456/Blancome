@@ -1,4 +1,6 @@
 import logging
+import sys
+import threading
 from assistant.listener import Listener
 from assistant.brain import Brain
 
@@ -14,11 +16,20 @@ def main():
     brain = Brain(require_wake_word=True)
     listener = Listener(on_phrase=brain.handle)
 
-    try:
-        listener.start()
-    except KeyboardInterrupt:
-        listener.stop()
+    if sys.platform == "win32":
+        from assistant import ui
+        threading.Thread(target=listener.start, daemon=True).start()
+        try:
+            ui.run(on_close=listener.stop)
+        except KeyboardInterrupt:
+            listener.stop()
         logger.info("Blancome stopped.")
+    else:
+        try:
+            listener.start()
+        except KeyboardInterrupt:
+            listener.stop()
+            logger.info("Blancome stopped.")
 
 if __name__ == "__main__":
     main()

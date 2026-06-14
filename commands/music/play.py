@@ -1,7 +1,7 @@
 import logging
 from commands.base import Command
 from config import PLAYLIST_FILES
-from assistant.player import player
+from assistant.music_service import music_service
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +19,5 @@ class PlayCommand(Command):
 			logger.warning("Playlist '%s' not found. Available: %s", playlist_name, list(PLAYLIST_FILES.keys()))
 			return
 
-		playlist_file = PLAYLIST_FILES[playlist_name]
-		logger.info("Loading playlist '%s' from %s.", playlist_name, playlist_file)
-		count = player.load_playlist(playlist_file)
-
-		if count == 0:
-			logger.warning("No tracks found in playlist '%s'.", playlist_name)
-			return
-
-		logger.info("Starting playback of '%s' (%d tracks).", playlist_name, count)
-		player.play()
+		logger.info("Loading playlist '%s' from %s.", playlist_name, PLAYLIST_FILES[playlist_name])
+		music_service.load_playlist(PLAYLIST_FILES[playlist_name])

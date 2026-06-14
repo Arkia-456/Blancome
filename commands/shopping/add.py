@@ -1,7 +1,6 @@
 import logging
 from commands.base import Command
-from config import SHOPPING_LIST_FILE
-from datetime import datetime
+from assistant.shopping_service import shopping_service
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +40,7 @@ class AddCommand(Command):
 			logger.warning("No product could be extracted from: '%s'", text)
 			return
 
-		logger.info("Adding '%s' to shopping list.", product)
-		try:
-			SHOPPING_LIST_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-			with open(SHOPPING_LIST_FILE, "a", encoding="utf-8") as f:
-				timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-				f.write(f"- {product} (added {timestamp})\n")
-
-			logger.info("'%s' successfully added to shopping list (%s).", product, SHOPPING_LIST_FILE)
-		except Exception as e:
-			logger.error("Error writing to shopping list file: %s", e)
+		shopping_service.add_item(product)
 	
 	def _extract_product(self, text: str) -> str:
 		result = text
