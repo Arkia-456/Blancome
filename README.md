@@ -10,7 +10,7 @@ Fully offline voice assistant built in Python, designed for Raspberry Pi. It lis
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - A working microphone
 - [Vosk French model](https://alphacephei.com/vosk/models) (see setup below)
 - _(Optional)_ Free Mobile account for SMS shopping list delivery
