@@ -89,15 +89,23 @@ class MusicPlayer:
 		with self._lock:
 			if not self._tracks:
 				return
+			was_paused = self._paused
 			self._index = (self._index + 1) % len(self._tracks)
 			self._play_current()
+			if was_paused:
+				pygame.mixer.music.pause()
+				self._paused = True
 
 	def previous(self):
 		with self._lock:
 			if not self._tracks:
 				return
+			was_paused = self._paused
 			self._index = (self._index - 1) % len(self._tracks)
 			self._play_current()
+			if was_paused:
+				pygame.mixer.music.pause()
+				self._paused = True
 
 	def has_tracks(self) -> bool:
 		with self._lock:
