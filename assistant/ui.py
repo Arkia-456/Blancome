@@ -540,7 +540,8 @@ class MainWindow(QMainWindow):
         self._last_queue_key = None
 
         self.setWindowTitle("Blancome")
-        self.setFixedSize(800, 600)
+        self.setMinimumSize(800, 600)
+        self.resize(800, 600)
         if _ICON.exists():
             self.setWindowIcon(QIcon(str(_ICON)))
 
@@ -632,13 +633,11 @@ class MainWindow(QMainWindow):
         card_area = QWidget()
         card_area.setObjectName("card_area")
         ca = QHBoxLayout(card_area)
-        ca.setContentsMargins(0, 16, 0, 16)
-        ca.addStretch()
+        ca.setContentsMargins(24, 16, 24, 16)
         self._stack = QStackedWidget()
         self._stack.addWidget(self._make_card())
         self._stack.addWidget(self._make_shopping_card())
         ca.addWidget(self._stack)
-        ca.addStretch()
         h.addWidget(card_area, stretch=1)
 
         self._nav_music.clicked.connect(lambda: self._switch_page(0))
@@ -656,8 +655,8 @@ class MainWindow(QMainWindow):
     def _make_card(self) -> QFrame:
         card = QFrame()
         card.setObjectName("card")
-        card.setFixedWidth(560)
-        card.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        card.setMinimumWidth(400)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         v = QVBoxLayout(card)
         v.setContentsMargins(0, 0, 0, 0)
@@ -675,8 +674,8 @@ class MainWindow(QMainWindow):
     def _make_shopping_card(self) -> QFrame:
         card = QFrame()
         card.setObjectName("card")
-        card.setFixedWidth(560)
-        card.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        card.setMinimumWidth(400)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         v = QVBoxLayout(card)
         v.setContentsMargins(0, 0, 0, 0)
@@ -902,14 +901,8 @@ class MainWindow(QMainWindow):
         row = QWidget()
         row.setStyleSheet("background: transparent;")
         h = QHBoxLayout(row)
-        h.setContentsMargins(4, 0, 8, 0)
+        h.setContentsMargins(8, 0, 4, 0)
         h.setSpacing(8)
-
-        lbl = QLabel(text)
-        lbl.setStyleSheet(
-            f"color: {_PLUM}; font-family: 'Segoe UI'; font-size: 10pt; background: transparent;"
-        )
-        h.addWidget(lbl, stretch=1)
 
         btn = QPushButton("×")
         btn.setObjectName("remove_btn")
@@ -917,6 +910,12 @@ class MainWindow(QMainWindow):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(lambda checked, t=text: self._remove_product(t))
         h.addWidget(btn)
+
+        lbl = QLabel(text)
+        lbl.setStyleSheet(
+            f"color: {_PLUM}; font-family: 'Segoe UI'; font-size: 10pt; background: transparent;"
+        )
+        h.addWidget(lbl, stretch=1)
 
         self._shopping_list.setItemWidget(item, row)
 
