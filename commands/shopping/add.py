@@ -1,4 +1,5 @@
 import logging
+import re
 from commands.base import Command
 from assistant.shopping_service import shopping_service
 
@@ -44,7 +45,9 @@ class AddCommand(Command):
 	
 	def _extract_product(self, text: str) -> str:
 		result = text
-		all_strips = sorted(STRIP, key=len, reverse=True)
-		for phrase in all_strips:
+		for phrase in sorted(STRIP, key=len, reverse=True):
+			if phrase.endswith(" "):
+				result = re.sub(r'\b' + re.escape(phrase.strip()) + r'\b', " ", result)
+			else:
 				result = result.replace(phrase, " ")
 		return " ".join(result.split()).strip()
