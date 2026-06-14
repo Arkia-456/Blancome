@@ -17,21 +17,21 @@ class MusicService:
             logger.info("Pause requested but no music is currently playing.")
 
     def next(self):
-        if player.is_playing():
+        if player.is_playing() or player.is_paused():
             logger.info("Next track.")
             player.next()
         else:
             logger.info("Next requested but no music is currently playing.")
 
     def previous(self):
-        if player.is_playing():
+        if player.is_playing() or player.is_paused():
             logger.info("Going to previous track.")
             player.previous()
         else:
             logger.info("Previous requested but no music is currently playing.")
 
     def stop(self):
-        if player.is_playing():
+        if player.is_playing() or player.is_paused():
             logger.info("Stopping music playback.")
             player.stop()
         else:
