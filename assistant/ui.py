@@ -1,6 +1,8 @@
 import ctypes
 import logging
+import ssl
 import sys
+import time
 import datetime
 from pathlib import Path
 
@@ -13,7 +15,7 @@ from PyQt6.QtWidgets import (
     QStyledItemDelegate, QStackedWidget, QListWidget, QListWidgetItem, QLineEdit,
     QScrollArea, QScroller,
 )
-from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, QPoint, QPropertyAnimation, pyqtSignal, pyqtProperty
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont, QPixmap
 
 from assistant.music_service import music_service
@@ -466,7 +468,7 @@ class PlayButton(QPushButton):
             self._playing = playing
             self.update()
 
-    def paintEvent(self, _event):
+    def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         cx, cy, r_btn, r_glow = 60, 60, 45, 57
@@ -515,7 +517,7 @@ class SkipButton(QPushButton):
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-    def paintEvent(self, _event):
+    def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -563,7 +565,7 @@ class NavButton(QPushButton):
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-    def paintEvent(self, _event):
+    def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         cx, cy, r = self.width() // 2, self.height() // 2, 33
@@ -663,7 +665,7 @@ class _SmsButton(QPushButton):
         p.end()
         return result
 
-    def paintEvent(self, _event):
+    def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         px = self._icon_hover if self.underMouse() else self._icon_normal
@@ -880,11 +882,23 @@ class _CalendarFetcher(QObject):
         all_events: list = []
         errors: list     = []
         for name, svc in [("Google", calendar_service), ("Microsoft", microsoft_calendar_service)]:
-            try:
-                all_events.extend(svc.get_events(self._start, self._end))
-            except Exception as e:
-                logger.warning("%s Calendar fetch skipped: %s", name, e)
-                errors.append(f"{name} : {e}")
+            for attempt in range(3):
+                try:
+                    all_events.extend(svc.get_events(self._start, self._end))
+                    break
+                except Exception as e:
+                    transient = (
+                        isinstance(e, (ssl.SSLError, TimeoutError))
+                        or "timed out" in str(e).lower()
+                        or "eof occurred" in str(e).lower()
+                    )
+                    if attempt < 2 and transient:
+                        logger.warning("%s Calendar transient error (attempt %d/3), retrying: %s", name, attempt + 1, e)
+                        time.sleep(2 ** attempt)
+                    else:
+                        logger.warning("%s Calendar fetch skipped: %s", name, e)
+                        errors.append(f"{name} : {e}")
+                        break
 
         if not all_events and errors:
             self.error.emit("\n".join(errors))
@@ -894,6 +908,85 @@ class _CalendarFetcher(QObject):
             e.get("start", {}).get("dateTime", e.get("start", {}).get("date", ""))
         ))
         self.done.emit(all_events)
+
+
+_TOAST_W  = 280
+_TOAST_MS = 4000
+_FADE_MS  = 600
+
+
+class _CalendarToast(QWidget):
+    _BAR_H  = 5
+    _TEXT_H = 50
+
+    def __init__(self, message: str, parent):
+        super().__init__(parent)
+        self.setFixedSize(_TOAST_W, self._TEXT_H + self._BAR_H)
+
+        msg_lower = message.lower()
+        if "timed out" in msg_lower or "timeout" in msg_lower:
+            self._text = "Délai de connexion dépassé"
+        elif "ssl" in msg_lower or "eof occurred" in msg_lower:
+            self._text = "Erreur SSL"
+        else:
+            self._text = "Erreur de connexion"
+
+        self._ratio = 1.0
+        self._alpha = 1.0
+
+        self._prog = QPropertyAnimation(self, b"bar_ratio", self)
+        self._prog.setDuration(_TOAST_MS)
+        self._prog.setStartValue(1.0)
+        self._prog.setEndValue(0.0)
+        QTimer.singleShot(0, self._prog.start)
+
+        self._fade = QPropertyAnimation(self, b"opacity_val", self)
+        self._fade.setDuration(_FADE_MS)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.finished.connect(self.deleteLater)
+        QTimer.singleShot(_TOAST_MS, self._fade.start)
+
+    def _get_ratio(self): return self._ratio
+    def _set_ratio(self, v):
+        self._ratio = max(0.0, min(1.0, v))
+        self.update()
+    bar_ratio = pyqtProperty(float, _get_ratio, _set_ratio)
+
+    def _get_alpha(self): return self._alpha
+    def _set_alpha(self, v):
+        self._alpha = max(0.0, min(1.0, v))
+        self.update()
+    opacity_val = pyqtProperty(float, _get_alpha, _set_alpha)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setOpacity(self._alpha)
+
+        clip = QPainterPath()
+        clip.addRoundedRect(0.5, 0.5, self.width() - 1, self.height() - 1, 6, 6)
+        p.setClipPath(clip)
+
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(_CARD))
+        p.drawPath(clip)
+
+        if self._ratio > 0:
+            bar_w = int(self.width() * self._ratio)
+            p.setBrush(QColor(_PLUM))
+            p.drawRect(self.width() - bar_w, self.height() - self._BAR_H, bar_w, self._BAR_H)
+
+        p.setClipping(False)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(QColor(_PLUM_SOFT), 1))
+        p.drawPath(clip)
+
+        p.setPen(QColor(_PLUM))
+        p.setFont(QFont("Segoe UI", 11))
+        fm = p.fontMetrics()
+        ty = (self._TEXT_H - fm.height()) // 2 + fm.ascent()
+        p.drawText(12, ty, self._text)
 
 
 class MainWindow(QMainWindow):
@@ -1108,8 +1201,10 @@ class MainWindow(QMainWindow):
         return card
 
     def _make_calendar_card(self) -> QFrame:
+        self._last_events: list = []
         card = QFrame()
         card.setObjectName("card")
+        self._calendar_card = card
         card.setMinimumWidth(500)
         card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -1130,6 +1225,14 @@ class MainWindow(QMainWindow):
         title.setObjectName("music_title")
         hh.addWidget(title)
         hh.addStretch()
+        _danger_icon = Path(__file__).parent.parent / "assets" / "danger-icon.png"
+        self._cal_error_icon = QLabel()
+        self._cal_error_icon.setPixmap(
+            QPixmap(str(_danger_icon)).scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        )
+        self._cal_error_icon.setToolTip("La dernière mise à jour du calendrier a échoué")
+        self._cal_error_icon.hide()
+        hh.addWidget(self._cal_error_icon)
         v.addWidget(head)
 
         v.addWidget(_hsep())
@@ -1246,11 +1349,12 @@ class MainWindow(QMainWindow):
     def _refresh_calendar_events(self):
         if hasattr(self, "_cal_thread") and self._cal_thread.isRunning():
             return
-        self._clear_events_panel()
-        loading = QLabel("Chargement…")
-        loading.setObjectName("cal_placeholder")
-        loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._events_layout.insertWidget(0, loading)
+        if not self._last_events:
+            self._clear_events_panel()
+            loading = QLabel("Chargement…")
+            loading.setObjectName("cal_placeholder")
+            loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._events_layout.insertWidget(0, loading)
 
         today = datetime.date.today()
         self._cal_fetcher = _CalendarFetcher(today, today + datetime.timedelta(days=30))
@@ -1265,6 +1369,8 @@ class MainWindow(QMainWindow):
         self._cal_thread.start()
 
     def _on_events_fetched(self, events: list):
+        self._last_events = events
+        self._cal_error_icon.hide()
         self._clear_events_panel()
         if not events:
             lbl = QLabel("Aucun événement\nà venir")
@@ -1347,16 +1453,32 @@ class MainWindow(QMainWindow):
             pos += 1
 
     def _on_events_error(self, message: str):
+        self._cal_error_icon.show()
+        if self._last_events:
+            self._show_cal_toast(message)
+            return
         self._clear_events_panel()
-        lbl = QLabel(message)
+        lbl = QLabel("Aucun événement chargé")
         lbl.setObjectName("cal_placeholder")
-        lbl.setWordWrap(True)
+        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         retry_btn = QPushButton("Réessayer")
         retry_btn.setObjectName("load_btn")
         retry_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         retry_btn.clicked.connect(self._refresh_all_calendar)
         self._events_layout.insertWidget(0, retry_btn)
         self._events_layout.insertWidget(0, lbl)
+        self._show_cal_toast(message)
+
+    def _show_cal_toast(self, message: str):
+        card = getattr(self, "_calendar_card", None)
+        if card is None:
+            return
+        toast = _CalendarToast(message, self)
+        toast.adjustSize()
+        pos = card.mapTo(self, QPoint(card.width() - toast.width() - 16, 16))
+        toast.move(pos)
+        toast.show()
+        toast.raise_()
 
     def _refresh_month_dots(self, year: int, month: int):
         if hasattr(self, "_dots_thread") and self._dots_thread.isRunning():
