@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, pyqtSignal
-from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont
+from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont, QPixmap
 
 from assistant.music_service import music_service
 from assistant.shopping_service import shopping_service
@@ -639,6 +639,46 @@ class NavButton(QPushButton):
                 p.drawEllipse(col, row, 5, 5)
 
 
+_PLANE_ICON = Path(__file__).parent.parent / "assets" / "plane-icon.png"
+
+
+class _SmsButton(QPushButton):
+    """Icon-only button using the plane-icon.png asset."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(48, 48)
+        self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip("Envoyer par SMS")
+        src = QPixmap(str(_PLANE_ICON)).scaled(
+            40, 40,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._icon_normal = self._tint(src, QColor(_PLUM_SOFT))
+        self._icon_hover  = self._tint(src, QColor(_GOLD))
+
+    @staticmethod
+    def _tint(src: "QPixmap", color: QColor) -> "QPixmap":
+        result = QPixmap(src.size())
+        result.fill(Qt.GlobalColor.transparent)
+        p = QPainter(result)
+        p.drawPixmap(0, 0, src)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        p.fillRect(result.rect(), color)
+        p.end()
+        return result
+
+    def paintEvent(self, _event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        px = self._icon_hover if self.underMouse() else self._icon_normal
+        x = (self.width()  - px.width())  // 2
+        y = (self.height() - px.height()) // 2
+        p.drawPixmap(x, y, px)
+
+
 class _QueueDelegate(QStyledItemDelegate):
     """Paints queue cells manually so QSS can't override per-item backgrounds."""
 
@@ -1037,9 +1077,7 @@ class MainWindow(QMainWindow):
         title.setObjectName("music_title")
         hh.addWidget(title)
         hh.addStretch()
-        send_btn = QPushButton("Envoyer par SMS")
-        send_btn.setObjectName("load_btn")
-        send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        send_btn = _SmsButton()
         send_btn.clicked.connect(self._send_shopping_list)
         hh.addWidget(send_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         v.addWidget(head)
