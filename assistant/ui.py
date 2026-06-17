@@ -774,8 +774,8 @@ class CalendarWidget(QWidget):
 
     def _setup_ui(self):
         v = QVBoxLayout(self)
-        v.setContentsMargins(18, 24, 18, 24)
-        v.setSpacing(15)
+        v.setContentsMargins(18, 8, 18, 8)
+        v.setSpacing(6)
 
         nav = QHBoxLayout()
         self._prev_btn = QPushButton("‹")
@@ -815,7 +815,7 @@ class CalendarWidget(QWidget):
             lbl = QLabel(name)
             lbl.setObjectName("cal_day_header")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setFixedSize(69, 36)
+            lbl.setFixedSize(69, 28)
             self._grid.addWidget(lbl, 0, col)
 
         first_day = datetime.date(self._year, self._month, 1)
