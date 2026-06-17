@@ -1312,7 +1312,7 @@ class MainWindow(QMainWindow):
         retry_btn = QPushButton("Réessayer")
         retry_btn.setObjectName("load_btn")
         retry_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        retry_btn.clicked.connect(self._refresh_calendar_events)
+        retry_btn.clicked.connect(self._refresh_all_calendar)
         self._events_layout.insertWidget(0, retry_btn)
         self._events_layout.insertWidget(0, lbl)
 
