@@ -1039,7 +1039,7 @@ class MainWindow(QMainWindow):
         header.setObjectName("header")
 
         h = QHBoxLayout(header)
-        h.setContentsMargins(60, 33, 60, 33)
+        h.setContentsMargins(60, 33, 60, 12)
 
         left = QVBoxLayout()
         left.setSpacing(6)
