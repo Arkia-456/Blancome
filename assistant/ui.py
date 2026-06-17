@@ -815,7 +815,7 @@ class CalendarWidget(QWidget):
             lbl = QLabel(name)
             lbl.setObjectName("cal_day_header")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setFixedSize(69, 28)
+            lbl.setFixedSize(69, 20)
             self._grid.addWidget(lbl, 0, col)
 
         first_day = datetime.date(self._year, self._month, 1)
@@ -1082,6 +1082,8 @@ class MainWindow(QMainWindow):
 
         self._shopping_list = QListWidget()
         self._shopping_list.setObjectName("shopping_list")
+        self._shopping_list.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        QScroller.grabGesture(self._shopping_list.viewport(), QScroller.ScrollerGestureType.TouchGesture)
         bv.addWidget(self._shopping_list, stretch=1)
 
         bv.addSpacing(15)
@@ -1156,7 +1158,16 @@ class MainWindow(QMainWindow):
 
         bv.addWidget(top, stretch=1)
         bv.addWidget(_hsep())
-        bv.addWidget(self._make_day_detail_panel())
+
+        bottom = QWidget()
+        bottom.setStyleSheet("background: transparent;")
+        bh2 = QHBoxLayout(bottom)
+        bh2.setContentsMargins(0, 0, 0, 0)
+        bh2.setSpacing(0)
+        bh2.addWidget(self._make_day_detail_panel(), stretch=2)
+        bh2.addWidget(_vsep())
+        bh2.addWidget(self._make_legend_panel(), stretch=1)
+        bv.addWidget(bottom)
 
         v.addWidget(body, stretch=1)
         return card
@@ -1190,6 +1201,36 @@ class MainWindow(QMainWindow):
         QScroller.grabGesture(scroll.viewport(), QScroller.ScrollerGestureType.TouchGesture)
 
         v.addWidget(scroll, stretch=1)
+        return panel
+
+    def _make_legend_panel(self) -> QWidget:
+        panel = QWidget()
+        panel.setObjectName("body")
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(24, 16, 24, 16)
+        v.setSpacing(8)
+        v.addStretch()
+        for color, label in [
+            (_DOT_YELLOW, "Télétravail"),
+            (_DOT_PURPLE, "Congés"),
+            (_GOLD,       "Autres"),
+        ]:
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            row.setContentsMargins(0, 0, 0, 0)
+            dot = QLabel("●")
+            dot.setStyleSheet(
+                f"color: {color}; background: transparent; font-size: 10pt;"
+            )
+            lbl = QLabel(label)
+            lbl.setStyleSheet(
+                f"color: {_MUTED}; font-family: 'Segoe UI'; font-size: 11pt;"
+                " background: transparent;"
+            )
+            row.addWidget(dot)
+            row.addWidget(lbl)
+            row.addStretch()
+            v.addLayout(row)
         return panel
 
     def _clear_events_panel(self):
@@ -1598,8 +1639,10 @@ class MainWindow(QMainWindow):
         tv.setRootIsDecorated(False)
         tv.setUniformRowHeights(True)
         tv.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        tv.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         tv.setItemDelegate(_QueueDelegate(tv))
         tv.itemClicked.connect(self._on_queue_click)
+        QScroller.grabGesture(tv.viewport(), QScroller.ScrollerGestureType.TouchGesture)
         self._queue_tv = tv
         return tv
 
