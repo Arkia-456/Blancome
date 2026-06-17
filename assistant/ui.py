@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QFileDialog, QTreeWidget, QTreeWidgetItem,
     QFrame, QHeaderView, QAbstractItemView, QSlider, QSizePolicy,
     QStyledItemDelegate, QStackedWidget, QListWidget, QListWidgetItem, QLineEdit,
-    QScrollArea,
+    QScrollArea, QScroller,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, pyqtSignal
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont, QPixmap
@@ -1187,6 +1187,7 @@ class MainWindow(QMainWindow):
         self._events_layout.setSpacing(0)
         self._events_layout.addStretch()
         scroll.setWidget(self._events_container)
+        QScroller.grabGesture(scroll.viewport(), QScroller.ScrollerGestureType.TouchGesture)
 
         v.addWidget(scroll, stretch=1)
         return panel
@@ -1380,6 +1381,7 @@ class MainWindow(QMainWindow):
         self._detail_events_layout.setSpacing(0)
         self._detail_events_layout.addStretch()
         scroll.setWidget(self._detail_events_container)
+        QScroller.grabGesture(scroll.viewport(), QScroller.ScrollerGestureType.TouchGesture)
 
         outer.addWidget(scroll, stretch=1)
         return panel
