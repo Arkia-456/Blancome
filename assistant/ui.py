@@ -1457,7 +1457,14 @@ class MainWindow(QMainWindow):
         body = QWidget()
         body.setObjectName("body")
 
-        v = QVBoxLayout(body)
+        outer = QHBoxLayout(body)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # ── Left: now-playing info + controls ──────────────────
+        left_widget = QWidget()
+        left_widget.setObjectName("body")
+        v = QVBoxLayout(left_widget)
         v.setContentsMargins(30, 24, 30, 24)
         v.setSpacing(0)
 
@@ -1486,10 +1493,20 @@ class MainWindow(QMainWindow):
         v.addLayout(self._make_progress_row())
         v.addSpacing(12)
         v.addLayout(self._make_controls_row())
-        v.addSpacing(21)
-        v.addWidget(_hsep())
-        v.addSpacing(6)
-        v.addWidget(self._make_queue(), stretch=1)
+        v.addStretch()
+
+        outer.addWidget(left_widget, stretch=1)
+        outer.addWidget(_vsep())
+
+        # ── Right: queue ────────────────────────────────────────
+        right_widget = QWidget()
+        right_widget.setObjectName("body")
+        qv = QVBoxLayout(right_widget)
+        qv.setContentsMargins(0, 0, 0, 0)
+        qv.setSpacing(0)
+        qv.addWidget(self._make_queue())
+
+        outer.addWidget(right_widget, stretch=1)
         return body
 
     def _make_progress_row(self) -> QHBoxLayout:
