@@ -146,13 +146,13 @@ QLabel#tagline {{
 QLabel#clock {{
     color: {_PEARL};
     font-family: Consolas;
-    font-size: 26pt;
+    font-size: 48pt;
     background: transparent;
 }}
 QLabel#date_lbl {{
     color: {_DATE_FG};
     font-family: "Segoe UI";
-    font-size: 14pt;
+    font-size: 20pt;
     background: transparent;
 }}
 
