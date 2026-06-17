@@ -368,26 +368,19 @@ QLabel#cal_day {{
     font-family: "Segoe UI";
     font-size: 14pt;
     background: transparent;
-    border-radius: 27px;
+    border-radius: 24px;
 }}
 QLabel#cal_day:hover {{
     background: {_PEARL_DEEP};
 }}
-QLabel#cal_today {{
-    color: {_CARD};
-    font-family: "Segoe UI";
-    font-size: 14pt;
-    font-weight: bold;
-    background: {_GOLD};
-    border-radius: 27px;
-}}
+
 QLabel#cal_day_selected {{
     color: {_PLUM};
     font-family: "Segoe UI";
     font-size: 14pt;
     font-weight: bold;
     background: {_PEARL_DEEP};
-    border-radius: 27px;
+    border-radius: 24px;
 }}
 QLabel#cal_detail_date {{
     color: {_PLUM};
@@ -747,15 +740,15 @@ class _DayLabel(QLabel):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
-        dot, gap   = 6, 3
-        total      = len(colors) * dot + (len(colors) - 1) * gap
-        x          = self.width() // 2 - total // 2
-        y          = self.height() - 10
-        is_today   = self.objectName() == "cal_today"
+        dot, gap = 6, 3
+        total    = len(colors) * dot + (len(colors) - 1) * gap
+        x        = self.width() // 2 - total // 2
+        y        = self.height() - 10
         for c in colors:
-            p.setBrush(QBrush(QColor("white") if is_today else QColor(c)))
+            p.setBrush(QBrush(QColor(c)))
             p.drawEllipse(x, y, dot, dot)
             x += dot + gap
+        p.end()
 
 
 class CalendarWidget(QWidget):
@@ -836,13 +829,10 @@ class CalendarWidget(QWidget):
         row, col = 1, start_col
         for day in range(1, days_in_month + 1):
             cell_date = datetime.date(self._year, self._month, day)
-            is_today  = (cell_date == self._today)
             is_sel    = (cell_date == self._selected_date)
             dot_colors = self._event_dates.get(cell_date)
             lbl = _DayLabel(str(day), cell_date, dot_colors=dot_colors)
-            if is_today:
-                lbl.setObjectName("cal_today")
-            elif is_sel:
+            if is_sel:
                 lbl.setObjectName("cal_day_selected")
             else:
                 lbl.setObjectName("cal_day")
