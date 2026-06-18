@@ -1,6 +1,7 @@
 import logging
 import sys
 import threading
+import time
 from assistant.listener import Listener
 from assistant.brain import Brain
 
@@ -31,12 +32,24 @@ def main():
     logger = logging.getLogger(__name__)
     _install_excepthook(logger)
     logger.info("Starting Blancome...")
+    _t0 = time.perf_counter()
+
     brain = Brain(require_wake_word=True)
+    logger.info("Brain ready — %.3fs", time.perf_counter() - _t0)
+
+    _t1 = time.perf_counter()
     listener = Listener(on_phrase=brain.handle)
+    logger.info("Listener ready — %.3fs", time.perf_counter() - _t1)
 
     if sys.platform == "win32":
+        _t2 = time.perf_counter()
         from assistant import ui
+        logger.info("UI module imported — %.3fs", time.perf_counter() - _t2)
+
         threading.Thread(target=listener.start, daemon=True).start()
+
+        _t3 = time.perf_counter()
+        logger.info("Launching window... (%.3fs since start)", time.perf_counter() - _t0)
         try:
             ui.run(on_close=listener.stop)
         except KeyboardInterrupt:

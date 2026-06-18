@@ -4,6 +4,7 @@ import ssl
 import sys
 import threading
 import datetime
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -1918,10 +1919,15 @@ class MainWindow(QMainWindow):
 
 def run(on_close):
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("blancome.app")
+    _t = time.perf_counter()
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet(_STYLESHEET)
+    logger.info("QApplication ready — %.3fs", time.perf_counter() - _t)
 
+    _t = time.perf_counter()
     window = MainWindow(on_close)
+    logger.info("MainWindow built — %.3fs", time.perf_counter() - _t)
+
     window.show()
     app.exec()

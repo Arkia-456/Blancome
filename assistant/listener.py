@@ -1,16 +1,24 @@
+import logging
 import threading
+import time
 
 import sounddevice
 import queue
 import json
 from vosk import KaldiRecognizer, Model
 
+logger = logging.getLogger(__name__)
+
 class Listener:
 	def __init__(self, on_phrase):
 		self._running = False
 		self._audio_queue = queue.Queue()
+		_t = time.perf_counter()
 		self._model = Model("models/vosk-model")
+		logger.info("Vosk model loaded — %.3fs", time.perf_counter() - _t)
+		_t = time.perf_counter()
 		self._recognizer = KaldiRecognizer(self._model, 16000)
+		logger.info("KaldiRecognizer ready — %.3fs", time.perf_counter() - _t)
 		self._on_phrase = on_phrase
 
 	def start(self):

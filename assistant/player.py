@@ -1,12 +1,17 @@
+import logging
 from pathlib import Path
 import threading
 import time
 import pygame
 from mutagen import File as MutagenFile
 
+_logger = logging.getLogger(__name__)
+
 class MusicPlayer:
 	def __init__(self):
+		_t = time.perf_counter()
 		pygame.mixer.init()
+		_logger.info("pygame.mixer.init() — %.3fs", time.perf_counter() - _t)
 		self._tracks: list[Path] = []
 		self._track_infos: list[dict] = []
 		self._index = 0
