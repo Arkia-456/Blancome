@@ -19,12 +19,17 @@ class MusicPlayer:
 		self._watcher.start()
 
 	def _watch_end(self):
+		import logging
+		_log = logging.getLogger(__name__)
 		while True:
-			time.sleep(0.5)
-			with self._lock:
-				if self._playing and not self._paused and not pygame.mixer.music.get_busy():
-					self._index = (self._index + 1) % len(self._tracks)
-					self._play_current()
+			try:
+				time.sleep(0.5)
+				with self._lock:
+					if self._playing and not self._paused and not pygame.mixer.music.get_busy():
+						self._index = (self._index + 1) % len(self._tracks)
+						self._play_current()
+			except Exception:
+				_log.exception("Error in music watcher thread")
 
 	def load_playlist(self, playlist_path: Path) -> int:
 		tracks = []

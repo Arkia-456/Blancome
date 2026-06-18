@@ -2,7 +2,7 @@ import ctypes
 import logging
 import ssl
 import sys
-import time
+import threading
 import datetime
 from pathlib import Path
 
@@ -873,16 +873,19 @@ class _CalendarFetcher(QObject):
     done  = pyqtSignal(list)
     error = pyqtSignal(str)
 
-    def __init__(self, start: datetime.date, end: datetime.date, parent=None):
+    def __init__(self, start: datetime.date, end: datetime.date, stop_event, parent=None):
         super().__init__(parent)
         self._start = start
         self._end   = end
+        self._stop  = stop_event
 
     def run(self):
         all_events: list = []
         errors: list     = []
         for name, svc in [("Google", calendar_service), ("Microsoft", microsoft_calendar_service)]:
             for attempt in range(3):
+                if self._stop.is_set():
+                    return
                 try:
                     all_events.extend(svc.get_events(self._start, self._end))
                     break
@@ -894,7 +897,8 @@ class _CalendarFetcher(QObject):
                     )
                     if attempt < 2 and transient:
                         logger.warning("%s Calendar transient error (attempt %d/3), retrying: %s", name, attempt + 1, e)
-                        time.sleep(2 ** attempt)
+                        if self._stop.wait(2 ** attempt):
+                            return
                     else:
                         logger.warning("%s Calendar fetch skipped: %s", name, e)
                         errors.append(f"{name} : {e}")
@@ -1357,7 +1361,8 @@ class MainWindow(QMainWindow):
             self._events_layout.insertWidget(0, loading)
 
         today = datetime.date.today()
-        self._cal_fetcher = _CalendarFetcher(today, today + datetime.timedelta(days=30))
+        self._cal_stop    = threading.Event()
+        self._cal_fetcher = _CalendarFetcher(today, today + datetime.timedelta(days=30), self._cal_stop)
         self._cal_thread  = QThread(self)
         self._cal_fetcher.moveToThread(self._cal_thread)
         self._cal_thread.started.connect(self._cal_fetcher.run)
@@ -1765,6 +1770,8 @@ class MainWindow(QMainWindow):
         tv.setItemDelegate(_QueueDelegate(tv))
         tv.itemClicked.connect(self._on_queue_click)
         QScroller.grabGesture(tv.viewport(), QScroller.ScrollerGestureType.TouchGesture)
+        self._queue_scrolling = False
+        QScroller.scroller(tv.viewport()).stateChanged.connect(self._on_queue_scroller_state)
         self._queue_tv = tv
         return tv
 
@@ -1825,7 +1832,15 @@ class MainWindow(QMainWindow):
 
         self._shopping_list.setItemWidget(item, row)
 
+    def _on_queue_scroller_state(self, state):
+        if state in (QScroller.State.Dragging, QScroller.State.Scrolling):
+            self._queue_scrolling = True
+        elif state == QScroller.State.Inactive and self._queue_scrolling:
+            QTimer.singleShot(300, lambda: setattr(self, '_queue_scrolling', False))
+
     def _on_queue_click(self, item: QTreeWidgetItem, _col: int):
+        if self._queue_scrolling:
+            return
         idx = self._queue_tv.indexOfTopLevelItem(item)
         if idx >= 0:
             music_service.play_track(idx)
@@ -1891,6 +1906,9 @@ class MainWindow(QMainWindow):
         self._timer.stop()
         self._clock_timer.stop()
         self._shopping_timer.stop()
+        self._events_timer.stop()
+        if hasattr(self, "_cal_stop"):
+            self._cal_stop.set()
         self._on_close()
         event.accept()
 
