@@ -1491,7 +1491,8 @@ class MainWindow(QMainWindow):
         start = datetime.date(year, month, 1)
         end   = (datetime.date(year + 1, 1, 1) if month == 12
                  else datetime.date(year, month + 1, 1)) - datetime.timedelta(days=1)
-        self._dots_fetcher = _CalendarFetcher(start, end)
+        self._dots_stop    = threading.Event()
+        self._dots_fetcher = _CalendarFetcher(start, end, self._dots_stop)
         self._dots_thread  = QThread(self)
         self._dots_fetcher.moveToThread(self._dots_thread)
         self._dots_thread.started.connect(self._dots_fetcher.run)
@@ -1909,6 +1910,8 @@ class MainWindow(QMainWindow):
         self._events_timer.stop()
         if hasattr(self, "_cal_stop"):
             self._cal_stop.set()
+        if hasattr(self, "_dots_stop"):
+            self._dots_stop.set()
         self._on_close()
         event.accept()
 
