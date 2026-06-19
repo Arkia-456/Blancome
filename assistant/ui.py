@@ -488,9 +488,10 @@ class PlayButton(QPushButton):
         px = self._px_pause if self._playing else self._px_play
         # play icon is visually left-heavy — nudge 2 px right for optical balance
         ox = 2 if not self._playing else 0
-        x = (self.width()  - px.width())  // 2 + ox
-        y = (self.height() - px.height()) // 2
-        p.drawPixmap(x, y, px)
+        dpr = px.devicePixelRatio()
+        x = (self.width()  - px.width()  / dpr) / 2 + ox
+        y = (self.height() - px.height() / dpr) / 2
+        p.drawPixmap(int(x), int(y), px)
 
 
 class _IconButton(QPushButton):
@@ -517,9 +518,10 @@ class _IconButton(QPushButton):
             px = self._px_hover
         else:
             px = self._px
-        x = (self.width()  - px.width())  // 2
-        y = (self.height() - px.height()) // 2
-        p.drawPixmap(x, y, px)
+        dpr = px.devicePixelRatio()
+        x = (self.width()  - px.width()  / dpr) / 2
+        y = (self.height() - px.height() / dpr) / 2
+        p.drawPixmap(int(x), int(y), px)
 
 
 class NavButton(QPushButton):
@@ -552,9 +554,10 @@ class NavButton(QPushButton):
             p.setBrush(QBrush(QColor("#E0D5AE")))
         p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        x = (self.width()  - self._px.width())  // 2
-        y = (self.height() - self._px.height()) // 2
-        p.drawPixmap(x, y, self._px)
+        dpr = self._px.devicePixelRatio()
+        x = (self.width()  - self._px.width()  / dpr) / 2
+        y = (self.height() - self._px.height() / dpr) / 2
+        p.drawPixmap(int(x), int(y), self._px)
 
 
 class _QueueDelegate(QStyledItemDelegate):
@@ -677,7 +680,8 @@ class CalendarWidget(QWidget):
 
         self._grid_container = QWidget()
         self._grid = QGridLayout(self._grid_container)
-        self._grid.setSpacing(3)
+        self._grid.setHorizontalSpacing(3)
+        self._grid.setVerticalSpacing(1)
         self._grid.setContentsMargins(0, 0, 0, 0)
         v.addWidget(self._grid_container)
         v.addStretch()
@@ -955,7 +959,7 @@ class MainWindow(QMainWindow):
         sidebar.setObjectName("sidebar")
         sidebar.setFixedWidth(102)
         v = QVBoxLayout(sidebar)
-        v.setContentsMargins(18, 12, 0, 12)
+        v.setContentsMargins(9, 12, 0, 12)
         v.setSpacing(6)
         v.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self._nav_music = NavButton("music")
@@ -980,7 +984,7 @@ class MainWindow(QMainWindow):
         card_area = QWidget()
         card_area.setObjectName("card_area")
         ca = QHBoxLayout(card_area)
-        ca.setContentsMargins(18, 24, 36, 24)
+        ca.setContentsMargins(9, 12, 18, 12)
         self._stack = QStackedWidget()
         self._stack.addWidget(self._make_card())
         self._stack.addWidget(self._make_shopping_card())
