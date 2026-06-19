@@ -19,6 +19,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, QPoint, QPropertyAnimation, pyqtSignal, pyqtProperty
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont, QPixmap
 
+import qtawesome as qta
+
 from assistant.music_service import music_service
 from assistant.shopping_service import shopping_service
 from assistant.calendar_service import calendar_service
@@ -203,6 +205,7 @@ QPushButton#load_btn:hover {{
     background-color: {_PEARL_DEEP};
 }}
 
+
 /* ── Now playing ───────────────────────────────────────── */
 QLabel#now_playing_lbl {{
     color: {_AZURE_DEEP};
@@ -339,19 +342,6 @@ QPushButton#remove_btn:hover {{
 }}
 
 /* ── Calendar ───────────────────────────────────────────── */
-QPushButton#cal_nav {{
-    background: transparent;
-    border: none;
-    color: {_PLUM};
-    font-family: "Segoe UI";
-    font-size: 24pt;
-    font-weight: bold;
-    padding: 0px 12px;
-    min-width: 42px;
-}}
-QPushButton#cal_nav:hover {{
-    color: {_GOLD};
-}}
 QLabel#cal_month {{
     color: {_PLUM};
     font-family: Georgia;
@@ -408,7 +398,7 @@ QLabel#cal_event_group {{
     font-size: 12pt;
     font-weight: bold;
     background: transparent;
-    padding-top: 18px;
+    padding-top: 6px;
     padding-bottom: 3px;
 }}
 QLabel#cal_event_name {{
@@ -463,13 +453,15 @@ class PlayButton(QPushButton):
         self.setFixedSize(120, 120)
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._px_play  = qta.icon('fa6s.play',  color='white').pixmap(QSize(40, 40))
+        self._px_pause = qta.icon('fa6s.pause', color='white').pixmap(QSize(40, 40))
 
     def set_playing(self, playing: bool):
         if self._playing != playing:
             self._playing = playing
             self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         cx, cy, r_btn, r_glow = 60, 60, 45, 57
@@ -491,82 +483,63 @@ class PlayButton(QPushButton):
         p.setBrush(QBrush(fill))
         p.drawEllipse(cx - r_btn, cy - r_btn, r_btn * 2, r_btn * 2)
 
-        # Icon — drawn as shapes so they're crisp and perfectly centred
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(QColor("white")))
-        if self._playing:
-            # Pause: two vertical bars (centred at 60,60)
-            p.drawRoundedRect(48, 45, 8, 30, 3, 3)
-            p.drawRoundedRect(65, 45, 8, 30, 3, 3)
-        else:
-            # Play: right-pointing triangle (shifted +1 px right for visual balance)
-            tri = QPainterPath()
-            tri.moveTo(53, 45)
-            tri.lineTo(53, 75)
-            tri.lineTo(78, 60)
-            tri.closeSubpath()
-            p.drawPath(tri)
+        # Icon
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        px = self._px_pause if self._playing else self._px_play
+        # play icon is visually left-heavy — nudge 2 px right for optical balance
+        ox = 2 if not self._playing else 0
+        x = (self.width()  - px.width())  // 2 + ox
+        y = (self.height() - px.height()) // 2
+        p.drawPixmap(x, y, px)
 
 
-class SkipButton(QPushButton):
-    """Compact skip button drawn as a filled triangle + bar."""
+class _IconButton(QPushButton):
+    """Transparent icon-only button using a qtawesome glyph."""
 
-    def __init__(self, forward: bool, parent=None):
+    def __init__(self, icon_name, btn_size, icon_size, color, hover_color,
+                 disabled_color=None, tooltip='', parent=None):
         super().__init__(parent)
-        self._forward = forward
-        self.setFixedSize(66, 66)
+        self.setFixedSize(btn_size, btn_size)
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        if tooltip:
+            self.setToolTip(tooltip)
+        self._px          = qta.icon(icon_name, color=color).pixmap(QSize(icon_size, icon_size))
+        self._px_hover    = qta.icon(icon_name, color=hover_color).pixmap(QSize(icon_size, icon_size))
+        self._px_disabled = qta.icon(icon_name, color=disabled_color or _MUTED).pixmap(QSize(icon_size, icon_size))
 
-    def paintEvent(self, event):
+    def paintEvent(self, _event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if not self.isEnabled():
-            color = QColor(_MUTED)
+            px = self._px_disabled
         elif self.underMouse():
-            color = QColor(_AZURE_DEEP)
+            px = self._px_hover
         else:
-            color = QColor(_PLUM)
-
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(color))
-
-        # Icon: scaled 1.5× centred in 66×66 widget
-        # y band: 23→44  |  x band: 21→46
-        bw, bh, tw, gap = 5, 21, 16, 3  # bar width/height, triangle width, gap
-        x0 = 21  # left edge
-
-        if self._forward:
-            tri = QPainterPath()
-            tri.moveTo(x0,        23)
-            tri.lineTo(x0,        44)
-            tri.lineTo(x0 + tw,   33)
-            tri.closeSubpath()
-            p.drawPath(tri)
-            p.drawRect(x0 + tw + gap, 23, bw, bh)
-        else:
-            p.drawRect(x0, 23, bw, bh)
-            tri = QPainterPath()
-            tri.moveTo(x0 + bw + gap + tw, 23)
-            tri.lineTo(x0 + bw + gap + tw, 44)
-            tri.lineTo(x0 + bw + gap,      33)
-            tri.closeSubpath()
-            p.drawPath(tri)
+            px = self._px
+        x = (self.width()  - px.width())  // 2
+        y = (self.height() - px.height()) // 2
+        p.drawPixmap(x, y, px)
 
 
 class NavButton(QPushButton):
-    """Sidebar navigation button with a custom-painted icon."""
+    """Sidebar navigation button with a qtawesome icon on a painted circle."""
+
+    _ICONS = {
+        'music':    'fa6s.music',
+        'shopping': 'fa6s.cart-shopping',
+        'calendar': 'fa6s.calendar-days',
+    }
 
     def __init__(self, section: str, parent=None):
         super().__init__(parent)
-        self._section = section
         self.setFixedSize(84, 84)
         self.setCheckable(True)
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._px = qta.icon(self._ICONS[section], color=_PLUM).pixmap(QSize(36, 36))
 
-    def paintEvent(self, event):
+    def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         cx, cy, r = self.width() // 2, self.height() // 2, 33
@@ -578,101 +551,10 @@ class NavButton(QPushButton):
         else:
             p.setBrush(QBrush(QColor("#E0D5AE")))
         p.drawEllipse(cx - r, cy - r, r * 2, r * 2)
-        color = QColor(_PLUM)
-        if self._section == "music":
-            self._draw_music(p, color)
-        elif self._section == "calendar":
-            self._draw_calendar(p, color)
-        else:
-            self._draw_shopping(p, color)
-
-    def _draw_music(self, p: QPainter, color: QColor):
-        p.setBrush(QBrush(color))
-        p.setPen(Qt.PenStyle.NoPen)
-        # Note head 1 (left)
-        p.save(); p.translate(32, 56); p.rotate(-20)
-        p.drawEllipse(-9, -6, 18, 12)
-        p.restore()
-        # Note head 2 (right)
-        p.save(); p.translate(54, 51); p.rotate(-20)
-        p.drawEllipse(-9, -6, 18, 12)
-        p.restore()
-        # Stems + connecting beam
-        pen = QPen(color, 3.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-        p.setPen(pen)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawLine(39, 51, 39, 27)
-        p.drawLine(62, 47, 62, 23)
-        p.drawLine(39, 27, 62, 23)
-
-    def _draw_shopping(self, p: QPainter, color: QColor):
-        pen = QPen(color, 3.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-        p.setPen(pen)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        # Document outline
-        p.drawRoundedRect(26, 24, 33, 36, 3, 3)
-        # Three list lines
-        p.drawLine(33, 35, 51, 35)
-        p.drawLine(33, 44, 51, 44)
-        p.drawLine(33, 53, 45, 53)
-
-    def _draw_calendar(self, p: QPainter, color: QColor):
-        pen = QPen(color, 3.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-        p.setPen(pen)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        # Calendar outline
-        p.drawRoundedRect(23, 27, 39, 33, 3, 3)
-        # Header band
-        p.drawLine(23, 36, 62, 36)
-        # Ring hooks
-        p.drawLine(32, 23, 32, 32)
-        p.drawLine(53, 23, 53, 32)
-        # Grid dots (2x2)
-        p.setBrush(QBrush(color))
-        p.setPen(Qt.PenStyle.NoPen)
-        for col in (33, 45):
-            for row in (44, 53):
-                p.drawEllipse(col, row, 5, 5)
-
-
-_PLANE_ICON = Path(__file__).parent.parent / "assets" / "plane-icon.png"
-
-
-class _SmsButton(QPushButton):
-    """Icon-only button using the plane-icon.png asset."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(48, 48)
-        self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setToolTip("Envoyer par SMS")
-        src = QPixmap(str(_PLANE_ICON)).scaled(
-            40, 40,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._icon_normal = self._tint(src, QColor(_PLUM_SOFT))
-        self._icon_hover  = self._tint(src, QColor(_GOLD))
-
-    @staticmethod
-    def _tint(src: "QPixmap", color: QColor) -> "QPixmap":
-        result = QPixmap(src.size())
-        result.fill(Qt.GlobalColor.transparent)
-        p = QPainter(result)
-        p.drawPixmap(0, 0, src)
-        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
-        p.fillRect(result.rect(), color)
-        p.end()
-        return result
-
-    def paintEvent(self, event):
-        p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        px = self._icon_hover if self.underMouse() else self._icon_normal
-        x = (self.width()  - px.width())  // 2
-        y = (self.height() - px.height()) // 2
-        p.drawPixmap(x, y, px)
+        x = (self.width()  - self._px.width())  // 2
+        y = (self.height() - self._px.height()) // 2
+        p.drawPixmap(x, y, self._px)
 
 
 class _QueueDelegate(QStyledItemDelegate):
@@ -781,16 +663,12 @@ class CalendarWidget(QWidget):
         v.setSpacing(6)
 
         nav = QHBoxLayout()
-        self._prev_btn = QPushButton("‹")
-        self._prev_btn.setObjectName("cal_nav")
-        self._prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._prev_btn = _IconButton('fa6s.angle-left',  42, 20, _PLUM_SOFT, _GOLD)
         self._prev_btn.clicked.connect(self._prev_month)
         self._month_label = QLabel()
         self._month_label.setObjectName("cal_month")
         self._month_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._next_btn = QPushButton("›")
-        self._next_btn.setObjectName("cal_nav")
-        self._next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._next_btn = _IconButton('fa6s.angle-right', 42, 20, _PLUM_SOFT, _GOLD)
         self._next_btn.clicked.connect(self._next_month)
         nav.addWidget(self._prev_btn)
         nav.addWidget(self._month_label, stretch=1)
@@ -818,7 +696,7 @@ class CalendarWidget(QWidget):
             lbl = QLabel(name)
             lbl.setObjectName("cal_day_header")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setFixedSize(69, 20)
+            lbl.setFixedSize(69, 14)
             self._grid.addWidget(lbl, 0, col)
 
         first_day = datetime.date(self._year, self._month, 1)
@@ -1044,7 +922,7 @@ class MainWindow(QMainWindow):
         header.setObjectName("header")
 
         h = QHBoxLayout(header)
-        h.setContentsMargins(60, 33, 60, 12)
+        h.setContentsMargins(60, 16, 60, 12)
 
         left = QVBoxLayout()
         left.setSpacing(6)
@@ -1075,17 +953,18 @@ class MainWindow(QMainWindow):
     def _make_sidebar(self) -> QWidget:
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(84)
+        sidebar.setFixedWidth(102)
         v = QVBoxLayout(sidebar)
-        v.setContentsMargins(0, 12, 0, 12)
+        v.setContentsMargins(18, 12, 0, 12)
         v.setSpacing(6)
+        v.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self._nav_music = NavButton("music")
         self._nav_music.setChecked(True)
         self._nav_shopping = NavButton("shopping")
         self._nav_calendar = NavButton("calendar")
-        v.addWidget(self._nav_music)
-        v.addWidget(self._nav_shopping)
-        v.addWidget(self._nav_calendar)
+        v.addWidget(self._nav_music, alignment=Qt.AlignmentFlag.AlignHCenter)
+        v.addWidget(self._nav_shopping, alignment=Qt.AlignmentFlag.AlignHCenter)
+        v.addWidget(self._nav_calendar, alignment=Qt.AlignmentFlag.AlignHCenter)
         v.addStretch()
         return sidebar
 
@@ -1101,7 +980,7 @@ class MainWindow(QMainWindow):
         card_area = QWidget()
         card_area.setObjectName("card_area")
         ca = QHBoxLayout(card_area)
-        ca.setContentsMargins(36, 24, 36, 24)
+        ca.setContentsMargins(18, 24, 36, 24)
         self._stack = QStackedWidget()
         self._stack.addWidget(self._make_card())
         self._stack.addWidget(self._make_shopping_card())
@@ -1165,7 +1044,7 @@ class MainWindow(QMainWindow):
         title.setObjectName("music_title")
         hh.addWidget(title)
         hh.addStretch()
-        send_btn = _SmsButton()
+        send_btn = _IconButton('fa6s.paper-plane', 34, 28, _PLUM_SOFT, _GOLD, tooltip='Envoyer par SMS')
         send_btn.clicked.connect(self._send_shopping_list)
         hh.addWidget(send_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         v.addWidget(head)
@@ -1194,12 +1073,10 @@ class MainWindow(QMainWindow):
         self._product_input.setObjectName("product_input")
         self._product_input.setPlaceholderText("Nom du produit…")
         self._product_input.returnPressed.connect(self._add_product)
-        add_btn = QPushButton("Ajouter")
-        add_btn.setObjectName("load_btn")
-        add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        add_btn = _IconButton('fa6s.plus', 34, 20, _PLUM_SOFT, _GOLD, tooltip='Ajouter')
         add_btn.clicked.connect(self._add_product)
         add_row.addWidget(self._product_input, stretch=1)
-        add_row.addWidget(add_btn)
+        add_row.addWidget(add_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         bv.addLayout(add_row)
 
         v.addWidget(body, stretch=1)
@@ -1284,7 +1161,7 @@ class MainWindow(QMainWindow):
         panel = QWidget()
         panel.setObjectName("body")
         v = QVBoxLayout(panel)
-        v.setContentsMargins(24, 24, 24, 24)
+        v.setContentsMargins(24, 12, 24, 24)
         v.setSpacing(0)
 
         title = QLabel("À VENIR")
@@ -1317,7 +1194,6 @@ class MainWindow(QMainWindow):
         v = QVBoxLayout(panel)
         v.setContentsMargins(24, 16, 24, 16)
         v.setSpacing(8)
-        v.addStretch()
         for color, label in [
             (_DOT_YELLOW, "Télétravail"),
             (_DOT_PURPLE, "Congés"),
@@ -1339,6 +1215,7 @@ class MainWindow(QMainWindow):
             row.addWidget(lbl)
             row.addStretch()
             v.addLayout(row)
+        v.addStretch()
         return panel
 
     def _clear_events_panel(self):
@@ -1739,13 +1616,13 @@ class MainWindow(QMainWindow):
         h.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         h.setSpacing(12)
 
-        self._prev_btn = SkipButton(forward=False)
+        self._prev_btn = _IconButton('fa6s.backward-step', 66, 32, _PLUM, _AZURE_DEEP, _MUTED)
         self._prev_btn.clicked.connect(music_service.previous)
 
         self._play_btn = PlayButton()
         self._play_btn.clicked.connect(music_service.toggle_pause)
 
-        self._next_btn = SkipButton(forward=True)
+        self._next_btn = _IconButton('fa6s.forward-step', 66, 32, _PLUM, _AZURE_DEEP, _MUTED)
         self._next_btn.clicked.connect(music_service.next)
 
         h.addWidget(self._prev_btn)
