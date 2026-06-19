@@ -8,10 +8,13 @@ logger = logging.getLogger(__name__)
 _SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
 try:
+    import httplib2
+    import google_auth_httplib2
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
+    from googleapiclient.http import HttpRequest
     _DEPS_AVAILABLE = True
 except ImportError:
     _DEPS_AVAILABLE = False
@@ -20,6 +23,11 @@ except ImportError:
 class CalendarService:
     def __init__(self):
         self._service = None
+        self._creds   = None
+
+    def _make_request(self, _http, *args, **kwargs):
+        new_http = google_auth_httplib2.AuthorizedHttp(self._creds, http=httplib2.Http())
+        return HttpRequest(new_http, *args, **kwargs)
 
     def _build_service(self):
         if not _DEPS_AVAILABLE:
@@ -54,7 +62,9 @@ class CalendarService:
             GOOGLE_TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
             logger.info("Google Calendar token saved to %s.", GOOGLE_TOKEN_FILE)
 
-        return build("calendar", "v3", credentials=creds)
+        self._creds = creds
+        authorized_http = google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http())
+        return build("calendar", "v3", requestBuilder=self._make_request, http=authorized_http)
 
     def _get_service(self):
         if self._service is None:
@@ -62,7 +72,6 @@ class CalendarService:
         return self._service
 
     def get_events(self, start: datetime.date, end: datetime.date) -> list[dict]:
-        """Return events from the primary calendar between `start` and `end` (inclusive)."""
         service  = self._get_service()
         time_min = datetime.datetime(start.year, start.month, start.day).isoformat() + "Z"
         time_max = datetime.datetime(end.year, end.month, end.day, 23, 59, 59).isoformat() + "Z"
