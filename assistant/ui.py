@@ -560,6 +560,17 @@ class NavButton(QPushButton):
         p.drawPixmap(int(x), int(y), self._px)
 
 
+class _SeekSlider(QSlider):
+    """QSlider that jumps to the clicked position instead of page-stepping."""
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            ratio = max(0.0, min(1.0, event.position().x() / self.width()))
+            value = int(self.minimum() + ratio * (self.maximum() - self.minimum()))
+            self.setValue(value)
+        super().mousePressEvent(event)
+
+
 class _QueueDelegate(QStyledItemDelegate):
     """Paints queue cells manually so QSS can't override per-item backgrounds."""
 
@@ -1648,11 +1659,13 @@ class MainWindow(QMainWindow):
         self._cur_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._cur_lbl.setFixedWidth(54)
 
-        self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider = _SeekSlider(Qt.Orientation.Horizontal)
         self._slider.setObjectName("progress")
         self._slider.setRange(0, 1000)
         self._slider.setValue(0)
-        self._slider.setEnabled(False)  # display-only until seek is implemented
+        self._slider_dragging = False
+        self._slider.sliderPressed.connect(self._on_seek_start)
+        self._slider.sliderReleased.connect(self._on_seek_end)
 
         self._dur_lbl = QLabel("0:00")
         self._dur_lbl.setObjectName("time_lbl")
@@ -1663,6 +1676,15 @@ class MainWindow(QMainWindow):
         h.addWidget(self._slider)
         h.addWidget(self._dur_lbl)
         return h
+
+    def _on_seek_start(self):
+        self._slider_dragging = True
+
+    def _on_seek_end(self):
+        _, dur = music_service.get_position()
+        if dur > 0:
+            music_service.seek(self._slider.value() / 1000.0 * dur)
+        self._slider_dragging = False
 
     def _make_controls_row(self) -> QHBoxLayout:
         h = QHBoxLayout()
@@ -1793,9 +1815,10 @@ class MainWindow(QMainWindow):
         cur, dur = music_service.get_position()
         self._cur_lbl.setText(_fmt_time(cur))
         self._dur_lbl.setText(_fmt_time(dur))
-        self._slider.blockSignals(True)
-        self._slider.setValue(int(cur / dur * 1000) if dur > 0 else 0)
-        self._slider.blockSignals(False)
+        if not self._slider_dragging:
+            self._slider.blockSignals(True)
+            self._slider.setValue(int(cur / dur * 1000) if dur > 0 else 0)
+            self._slider.blockSignals(False)
 
         self._play_btn.set_playing(music_service.is_playing())
 

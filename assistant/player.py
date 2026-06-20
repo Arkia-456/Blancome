@@ -19,6 +19,7 @@ class MusicPlayer:
 		self._paused = False
 		self._current_info: dict = {}
 		self._paused_pos: float = 0.0
+		self._seek_offset: float = 0.0
 		self._lock = threading.Lock()
 		self._watcher = threading.Thread(target=self._watch_end, daemon=True)
 		self._watcher.start()
@@ -74,7 +75,7 @@ class MusicPlayer:
 		with self._lock:
 			pos_ms = pygame.mixer.music.get_pos()
 			if pos_ms >= 0:
-				self._paused_pos = pos_ms / 1000.0
+				self._paused_pos = self._seek_offset + pos_ms / 1000.0
 			pygame.mixer.music.pause()
 			self._paused = True
 
@@ -140,7 +141,7 @@ class MusicPlayer:
 				current = self._paused_pos
 			else:
 				pos_ms = pygame.mixer.music.get_pos()
-				current = pos_ms / 1000.0 if pos_ms >= 0 else 0.0
+				current = (self._seek_offset + pos_ms / 1000.0) if pos_ms >= 0 else self._seek_offset
 			return min(current, duration) if duration > 0 else current, duration
 
 	def get_queue(self) -> tuple[list[dict], int]:
@@ -162,6 +163,19 @@ class MusicPlayer:
 				self._index = index
 				self._play_current()
 
+	def seek(self, seconds: float):
+		with self._lock:
+			if not self._tracks:
+				return
+			duration = float(self._current_info.get("duration") or 0.0)
+			seconds = max(0.0, min(seconds, duration) if duration > 0 else seconds)
+			self._seek_offset = seconds
+			pygame.mixer.music.play(start=seconds)
+			self._playing = True
+			if self._paused:
+				pygame.mixer.music.pause()
+				self._paused_pos = seconds
+
 	def _play_current(self):
 		track = self._tracks[self._index]
 		if self._index < len(self._track_infos):
@@ -169,6 +183,7 @@ class MusicPlayer:
 		else:
 			self._current_info = self._read_track_info(track)
 		self._paused_pos = 0.0
+		self._seek_offset = 0.0
 		pygame.mixer.music.load(str(track))
 		pygame.mixer.music.play()
 		self._playing = True

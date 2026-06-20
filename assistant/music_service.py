@@ -60,6 +60,9 @@ class MusicService:
     def get_position(self) -> tuple[float, float]:
         return player.get_position()
 
+    def seek(self, seconds: float):
+        player.seek(seconds)
+
     def get_queue(self) -> tuple[list[dict], int]:
         return player.get_queue()
 
