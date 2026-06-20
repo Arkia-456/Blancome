@@ -602,6 +602,48 @@ def _event_dot_color(summary: str) -> str:
     return _GOLD
 
 
+def _event_day_occurrences(event: dict) -> list:
+    """Return a list of (date, time_str) for every calendar day the event covers.
+
+    All-day events use an exclusive end date (Google/Microsoft convention), so
+    an event with end=2026-06-20 appears on June 18 and 19 only.
+    Timed events are inclusive on both ends (e.g. 22:00→06:00 covers two days).
+    """
+    start = event.get("start", {})
+    end   = event.get("end",   {})
+    ds    = start.get("dateTime", start.get("date", ""))
+    de    = end.get("dateTime",   end.get("date", ""))
+    if not ds:
+        return []
+    try:
+        if "T" in ds:
+            start_dt   = datetime.datetime.fromisoformat(ds)
+            start_date = start_dt.date()
+            time_str   = start_dt.strftime("%H:%M")
+            if de:
+                end_dt   = datetime.datetime.fromisoformat(de)
+                end_date = end_dt.date()
+                time_str += " – " + end_dt.strftime("%H:%M")
+            else:
+                end_date = start_date
+        else:
+            start_date = datetime.date.fromisoformat(ds)
+            time_str   = "Toute la journée"
+            if de:
+                end_date = datetime.date.fromisoformat(de) - datetime.timedelta(days=1)
+            else:
+                end_date = start_date
+    except ValueError:
+        return []
+
+    result = []
+    day = start_date
+    while day <= end_date:
+        result.append((day, time_str))
+        day += datetime.timedelta(days=1)
+    return result
+
+
 class _DayLabel(QLabel):
     """Day cell that paints a small colored dot and emits a click signal."""
 
@@ -1261,15 +1303,10 @@ class MainWindow(QMainWindow):
     def _apply_dot_filter(self):
         date_colors: dict = {}
         for ev in getattr(self, "_cached_month_events", []):
-            s  = ev.get("start", {})
-            ds = s.get("dateTime", s.get("date", ""))
-            try:
-                d = (datetime.datetime.fromisoformat(ds).date() if "T" in ds
-                     else datetime.date.fromisoformat(ds))
-            except ValueError:
-                continue
             c = _event_dot_color(ev.get("summary", ""))
-            if c not in self._hidden_colors:
+            if c in self._hidden_colors:
+                continue
+            for d, _ in _event_day_occurrences(ev):
                 date_colors.setdefault(d, set()).add(c)
         self._cal_widget.set_event_dates(date_colors)
 
@@ -1323,27 +1360,15 @@ class MainWindow(QMainWindow):
         _mon_fr  = ["jan.", "fév.", "mar.", "avr.", "mai", "juin",
                     "juil.", "août", "sep.", "oct.", "nov.", "déc."]
 
+        rows: list = []
+        for event in events:
+            for event_date, time_str in _event_day_occurrences(event):
+                rows.append((event_date, time_str, event))
+        rows.sort(key=lambda r: r[0])
+
         current_date = None
         pos = 0
-        for event in events:
-            start  = event.get("start", {})
-            dt_str = start.get("dateTime", start.get("date", ""))
-            if not dt_str:
-                continue
-            try:
-                if "T" in dt_str:
-                    dt         = datetime.datetime.fromisoformat(dt_str)
-                    event_date = dt.date()
-                    time_str   = dt.strftime("%H:%M")
-                    end_str    = event.get("end", {}).get("dateTime", "")
-                    if end_str:
-                        time_str += " – " + datetime.datetime.fromisoformat(end_str).strftime("%H:%M")
-                else:
-                    event_date = datetime.date.fromisoformat(dt_str)
-                    time_str   = "Toute la journée"
-            except ValueError:
-                continue
-
+        for event_date, time_str, event in rows:
             if event_date != current_date:
                 current_date = event_date
                 if event_date == today:
@@ -1495,15 +1520,10 @@ class MainWindow(QMainWindow):
 
         day_events = []
         for ev in getattr(self, "_cached_month_events", []):
-            s  = ev.get("start", {})
-            ds = s.get("dateTime", s.get("date", ""))
-            try:
-                d = (datetime.datetime.fromisoformat(ds).date() if "T" in ds
-                     else datetime.date.fromisoformat(ds))
+            for d, time_str in _event_day_occurrences(ev):
                 if d == date:
-                    day_events.append(ev)
-            except ValueError:
-                pass
+                    day_events.append((ev, time_str))
+                    break
 
         if not day_events:
             lbl = QLabel("Aucun événement")
@@ -1511,21 +1531,7 @@ class MainWindow(QMainWindow):
             self._detail_events_layout.insertWidget(0, lbl)
             return
 
-        for i, ev in enumerate(day_events):
-            s  = ev.get("start", {})
-            ds = s.get("dateTime", s.get("date", ""))
-            try:
-                if "T" in ds:
-                    dt       = datetime.datetime.fromisoformat(ds)
-                    time_str = dt.strftime("%H:%M")
-                    end_ds   = ev.get("end", {}).get("dateTime", "")
-                    if end_ds:
-                        time_str += " – " + datetime.datetime.fromisoformat(end_ds).strftime("%H:%M")
-                else:
-                    time_str = "Toute la journée"
-            except ValueError:
-                time_str = ""
-
+        for i, (ev, time_str) in enumerate(day_events):
             row = QWidget()
             row.setStyleSheet("background: transparent;")
             rv = QHBoxLayout(row)
