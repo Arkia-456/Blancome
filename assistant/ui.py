@@ -1193,34 +1193,85 @@ class MainWindow(QMainWindow):
         return panel
 
     def _make_legend_panel(self) -> QWidget:
+        self._hidden_colors: set = set()
         panel = QWidget()
         panel.setObjectName("body")
         v = QVBoxLayout(panel)
         v.setContentsMargins(24, 16, 24, 16)
         v.setSpacing(8)
+        self._legend_items: list = []
         for color, label in [
             (_DOT_YELLOW, "Télétravail"),
             (_DOT_PURPLE, "Congés"),
             (_GOLD,       "Autres"),
         ]:
-            row = QHBoxLayout()
-            row.setSpacing(8)
-            row.setContentsMargins(0, 0, 0, 0)
+            row = QWidget()
+            row.setStyleSheet("background: transparent;")
+            row.setCursor(Qt.CursorShape.PointingHandCursor)
+            rh = QHBoxLayout(row)
+            rh.setSpacing(8)
+            rh.setContentsMargins(0, 0, 0, 0)
+
             dot = QLabel("●")
             dot.setStyleSheet(
                 f"color: {color}; background: transparent; font-size: 10pt;"
             )
             lbl = QLabel(label)
             lbl.setStyleSheet(
-                f"color: {_MUTED}; font-family: 'Segoe UI'; font-size: 11pt;"
+                "color: #1a1a1a; font-family: 'Segoe UI'; font-size: 11pt;"
                 " background: transparent;"
             )
-            row.addWidget(dot)
-            row.addWidget(lbl)
-            row.addStretch()
-            v.addLayout(row)
+            rh.addWidget(dot)
+            rh.addWidget(lbl)
+            rh.addStretch()
+            v.addWidget(row)
+
+            self._legend_items.append((color, dot, lbl))
+
+            def _make_handler(c, d, lb):
+                def handler(ev):
+                    if ev.button() != Qt.MouseButton.LeftButton:
+                        return
+                    if c in self._hidden_colors:
+                        self._hidden_colors.discard(c)
+                        d.setStyleSheet(
+                            f"color: {c}; background: transparent; font-size: 10pt;"
+                        )
+                        lb.setStyleSheet(
+                            "color: #1a1a1a; font-family: 'Segoe UI'; font-size: 11pt;"
+                            " background: transparent;"
+                        )
+                    else:
+                        self._hidden_colors.add(c)
+                        d.setStyleSheet(
+                            "color: transparent; background: transparent; font-size: 10pt;"
+                        )
+                        lb.setStyleSheet(
+                            f"color: {_MUTED}; font-family: 'Segoe UI'; font-size: 11pt;"
+                            " background: transparent;"
+                        )
+                    self._apply_dot_filter()
+                return handler
+
+            row.mousePressEvent = _make_handler(color, dot, lbl)
+
         v.addStretch()
         return panel
+
+    def _apply_dot_filter(self):
+        date_colors: dict = {}
+        for ev in getattr(self, "_cached_month_events", []):
+            s  = ev.get("start", {})
+            ds = s.get("dateTime", s.get("date", ""))
+            try:
+                d = (datetime.datetime.fromisoformat(ds).date() if "T" in ds
+                     else datetime.date.fromisoformat(ds))
+            except ValueError:
+                continue
+            c = _event_dot_color(ev.get("summary", ""))
+            if c not in self._hidden_colors:
+                date_colors.setdefault(d, set()).add(c)
+        self._cal_widget.set_event_dates(date_colors)
 
     def _clear_events_panel(self):
         while self._events_layout.count() > 1:
@@ -1386,17 +1437,7 @@ class MainWindow(QMainWindow):
 
     def _on_dots_fetched(self, events: list):
         self._cached_month_events = events
-        date_colors: dict = {}
-        for ev in events:
-            s  = ev.get("start", {})
-            ds = s.get("dateTime", s.get("date", ""))
-            try:
-                d = (datetime.datetime.fromisoformat(ds).date() if "T" in ds
-                     else datetime.date.fromisoformat(ds))
-            except ValueError:
-                continue
-            date_colors.setdefault(d, set()).add(_event_dot_color(ev.get("summary", "")))
-        self._cal_widget.set_event_dates(date_colors)
+        self._apply_dot_filter()
         if self._cal_widget._selected_date is not None:
             self._on_day_selected(self._cal_widget._selected_date)
 
