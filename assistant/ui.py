@@ -1397,6 +1397,8 @@ class MainWindow(QMainWindow):
                 continue
             date_colors.setdefault(d, set()).add(_event_dot_color(ev.get("summary", "")))
         self._cal_widget.set_event_dates(date_colors)
+        if self._cal_widget._selected_date is not None:
+            self._on_day_selected(self._cal_widget._selected_date)
 
     def _on_calendar_month_changed(self, year: int, month: int):
         self._cached_month_events = []
