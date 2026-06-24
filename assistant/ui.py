@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QFileDialog, QTreeWidget, QTreeWidgetItem,
     QFrame, QHeaderView, QAbstractItemView, QSlider, QSizePolicy,
     QStyledItemDelegate, QStackedWidget, QListWidget, QListWidgetItem, QLineEdit,
-    QScrollArea, QScroller, QMenu,
+    QScrollArea, QScroller, QMenu, QGraphicsOpacityEffect,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, QPoint, QPropertyAnimation, pyqtSignal, pyqtProperty
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont, QPixmap
@@ -1195,11 +1195,92 @@ class _UnsavedChangesDialog(QDialog):
         self.accept()
 
 
+class VoiceLoaderThread(QThread):
+    ready  = pyqtSignal()
+    failed = pyqtSignal(str)
+
+    def __init__(self, listener, parent=None):
+        super().__init__(parent)
+        self._listener = listener
+
+    def run(self):
+        try:
+            self._listener.load_model()
+            self.ready.emit()
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
+class VoiceStatusWidget(QWidget):
+    retry_requested = pyqtSignal()
+
+    _STATES = {
+        "loading": (_GOLD,       "fa5s.microphone",       "Voix : chargement…"),
+        "ready":   (_AZURE_DEEP, "fa5s.microphone",       "Voix : active"),
+        "failed":  (_RUBY,       "fa5s.microphone-slash", "Voix : erreur  ↺"),
+    }
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._state = "loading"
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 4, 0, 4)
+        layout.setSpacing(6)
+
+        self._icon_lbl = QLabel()
+        self._text_lbl = QLabel()
+
+        layout.addWidget(self._icon_lbl)
+        layout.addWidget(self._text_lbl)
+        layout.addStretch()
+
+        self._effect = QGraphicsOpacityEffect(self)
+        self._pulse  = QPropertyAnimation(self._effect, b"opacity", self)
+        self._pulse.setDuration(1400)
+        self._pulse.setKeyValueAt(0.0, 1.0)
+        self._pulse.setKeyValueAt(0.5, 0.25)
+        self._pulse.setKeyValueAt(1.0, 1.0)
+        self._pulse.setLoopCount(-1)
+        self.setGraphicsEffect(self._effect)
+
+        self.set_state("loading")
+
+    def set_state(self, state: str):
+        self._state = state
+        color, icon_name, text = self._STATES[state]
+        self._icon_lbl.setPixmap(qta.icon(icon_name, color=color).pixmap(QSize(14, 14)))
+        self._text_lbl.setText(text)
+        self._text_lbl.setStyleSheet(
+            f"color: {color}; font-family: 'Segoe UI'; font-size: 11px; background: transparent;"
+        )
+        if state == "loading":
+            self._pulse.start()
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            self.setToolTip("Chargement du modèle vocal…")
+        else:
+            self._pulse.stop()
+            self._effect.setOpacity(1.0)
+            if state == "failed":
+                self.setCursor(Qt.CursorShape.PointingHandCursor)
+                self.setToolTip("Échec du chargement — cliquer pour réessayer")
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+                self.setToolTip("Reconnaissance vocale opérationnelle")
+
+    def mousePressEvent(self, event):
+        if self._state == "failed":
+            self.retry_requested.emit()
+        super().mousePressEvent(event)
+
+
 class MainWindow(QMainWindow):
-    def __init__(self, on_close):
+    def __init__(self, listener, on_close):
         super().__init__()
+        self._listener = listener
         self._on_close = on_close
         self._last_queue_key = None
+        self._voice_started = False
 
         self.setWindowTitle("Blancome")
         self.setMinimumSize(800, 600)
@@ -1238,6 +1319,11 @@ class MainWindow(QMainWindow):
         self._events_timer.start(300_000)  # refresh every 5 minutes
         QTimer.singleShot(0, self._refresh_all_calendar)  # initial load after UI is ready
 
+        self._voice_thread = VoiceLoaderThread(listener, parent=self)
+        self._voice_thread.ready.connect(self._on_voice_ready)
+        self._voice_thread.failed.connect(self._on_voice_failed)
+        self._voice_thread.start()
+
     # ── Build helpers ────────────────────────────────────────────────────
 
     def _make_header(self) -> QFrame:
@@ -1256,6 +1342,10 @@ class MainWindow(QMainWindow):
         left.addWidget(app_name)
         left.addWidget(tagline)
 
+        self._voice_widget = VoiceStatusWidget()
+        self._voice_widget.retry_requested.connect(self._retry_voice)
+        left.addWidget(self._voice_widget)
+
         right = QVBoxLayout()
         right.setSpacing(5)
         right.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -1272,6 +1362,25 @@ class MainWindow(QMainWindow):
         h.addStretch()
         h.addLayout(right)
         return header
+
+    # ── Voice loading ────────────────────────────────────────────────────
+
+    def _on_voice_ready(self):
+        self._voice_widget.set_state("ready")
+        if not self._voice_started:
+            self._voice_started = True
+            threading.Thread(target=self._listener.start, daemon=True).start()
+
+    def _on_voice_failed(self, error_msg: str):
+        self._voice_widget.set_state("failed")
+        logger.error("Voice model failed to load: %s", error_msg)
+
+    def _retry_voice(self):
+        self._voice_widget.set_state("loading")
+        self._voice_thread = VoiceLoaderThread(self._listener, parent=self)
+        self._voice_thread.ready.connect(self._on_voice_ready)
+        self._voice_thread.failed.connect(self._on_voice_failed)
+        self._voice_thread.start()
 
     def _make_sidebar(self) -> QWidget:
         sidebar = QWidget()
@@ -2537,6 +2646,12 @@ class MainWindow(QMainWindow):
         self._clock_timer.stop()
         self._shopping_timer.stop()
         self._events_timer.stop()
+        # Disconnect voice thread signals so a late emission doesn't touch the destroyed window
+        try:
+            self._voice_thread.ready.disconnect()
+            self._voice_thread.failed.disconnect()
+        except RuntimeError:
+            pass
         if hasattr(self, "_cal_stop"):
             self._cal_stop.set()
         if hasattr(self, "_dots_stop"):
@@ -2545,18 +2660,17 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
-def run(on_close):
+def run(listener, on_close):
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("blancome.app")
     _t = time.perf_counter()
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet(_STYLESHEET)
 
-
     logger.info("QApplication ready — %.3fs", time.perf_counter() - _t)
 
     _t = time.perf_counter()
-    window = MainWindow(on_close)
+    window = MainWindow(listener=listener, on_close=on_close)
     logger.info("MainWindow built — %.3fs", time.perf_counter() - _t)
 
     window.show()

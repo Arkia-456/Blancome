@@ -37,21 +37,18 @@ def main():
     brain = Brain(require_wake_word=True)
     logger.info("Brain ready — %.3fs", time.perf_counter() - _t0)
 
-    _t1 = time.perf_counter()
+    # Listener creation is now instant — model loading happens in a background thread
     listener = Listener(on_phrase=brain.handle)
-    logger.info("Listener ready — %.3fs", time.perf_counter() - _t1)
+    logger.info("Listener created — %.3fs", time.perf_counter() - _t0)
 
     if sys.platform == "win32":
         _t2 = time.perf_counter()
         from assistant import ui
         logger.info("UI module imported — %.3fs", time.perf_counter() - _t2)
 
-        threading.Thread(target=listener.start, daemon=True).start()
-
-        _t3 = time.perf_counter()
         logger.info("Launching window... (%.3fs since start)", time.perf_counter() - _t0)
         try:
-            ui.run(on_close=listener.stop)
+            ui.run(listener=listener, on_close=listener.stop)
         except KeyboardInterrupt:
             listener.stop()
         except Exception:
@@ -59,10 +56,23 @@ def main():
             listener.stop()
         logger.info("Blancome stopped.")
     else:
+        # Headless: load model on a background thread, start listening once ready
+        def _load_and_run():
+            try:
+                logger.info("Loading voice model in background…")
+                listener.load_model()
+                logger.info("Voice model ready — starting listener")
+                listener.start()
+            except Exception:
+                logger.exception("Listener crashed")
+
+        t = threading.Thread(target=_load_and_run, daemon=False, name="listener")
+        t.start()
         try:
-            listener.start()
+            t.join()
         except KeyboardInterrupt:
             listener.stop()
+            t.join()
             logger.info("Blancome stopped.")
 
 if __name__ == "__main__":
