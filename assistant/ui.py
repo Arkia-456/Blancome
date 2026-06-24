@@ -1939,6 +1939,21 @@ class MainWindow(QMainWindow):
         qv.setContentsMargins(0, 0, 0, 0)
         qv.setSpacing(0)
         qv.addWidget(self._make_queue())
+        qv.addWidget(_hsep())
+
+        total_row = QWidget()
+        total_h = QHBoxLayout(total_row)
+        total_h.setContentsMargins(16, 6, 16, 8)
+        total_h.setSpacing(0)
+        total_caption = QLabel("Durée totale")
+        total_caption.setStyleSheet(f"color: {_MUTED}; font-size: 11px;")
+        self._total_time_lbl = QLabel("—")
+        self._total_time_lbl.setStyleSheet(f"color: {_PLUM}; font-size: 11px; font-weight: bold;")
+        self._total_time_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        total_h.addWidget(total_caption)
+        total_h.addStretch()
+        total_h.addWidget(self._total_time_lbl)
+        qv.addWidget(total_row)
 
         outer.addWidget(right_widget, stretch=1)
         return body
@@ -2506,6 +2521,16 @@ class MainWindow(QMainWindow):
 
             if 0 <= idx < tv.topLevelItemCount():
                 tv.scrollToItem(tv.topLevelItem(idx))
+
+            total_s = int(sum(t["duration"] for t in tracks if t.get("duration")))
+            if tracks and total_s:
+                h = total_s // 3600
+                m = (total_s % 3600) // 60
+                s = total_s % 60
+                total_str = f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+            else:
+                total_str = "—"
+            self._total_time_lbl.setText(total_str)
 
     def closeEvent(self, event):
         self._timer.stop()
