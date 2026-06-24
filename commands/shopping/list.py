@@ -1,6 +1,6 @@
 import logging
 from commands.base import Command
-from config import SHOPPING_LIST_FILE
+import config
 
 ADD_TRIGGERS = ["ajoute", "rajoute", "mets", "note"]
 SEND_TRIGGERS = ["envoie", "envoyer"]
@@ -23,11 +23,11 @@ class ListCommand(Command):
         return has_list and has_context
 
     def execute(self, text: str):
-        if SHOPPING_LIST_FILE is None:
+        if config.SHOPPING_LIST_FILE is None:
             logger.error("SHOPPING_LIST_FILE is not configured. Set it in your .env file.")
             return
         try:
-            with open(SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
+            with open(config.SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except FileNotFoundError:
             logger.info("Shopping list is empty (file not found).")

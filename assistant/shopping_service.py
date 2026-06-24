@@ -2,14 +2,14 @@ import logging
 import urllib.parse
 import requests
 from datetime import datetime
-from config import SHOPPING_LIST_FILE, FREE_MOBILE_USER, FREE_MOBILE_API_KEY
+import config
 
 logger = logging.getLogger(__name__)
 
 
 class ShoppingService:
     def _is_configured(self) -> bool:
-        if SHOPPING_LIST_FILE is None:
+        if config.SHOPPING_LIST_FILE is None:
             logger.error("SHOPPING_LIST_FILE is not configured. Set it in your .env file.")
             return False
         return True
@@ -18,7 +18,7 @@ class ShoppingService:
         if not self._is_configured():
             return []
         try:
-            with open(SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
+            with open(config.SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except FileNotFoundError:
             return []
@@ -39,7 +39,7 @@ class ShoppingService:
         if not self._is_configured():
             return
         try:
-            with open(SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
+            with open(config.SHOPPING_LIST_FILE, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except FileNotFoundError:
             return
@@ -56,7 +56,7 @@ class ShoppingService:
                     removed = True
                     continue
             new_lines.append(line)
-        with open(SHOPPING_LIST_FILE, "w", encoding="utf-8") as f:
+        with open(config.SHOPPING_LIST_FILE, "w", encoding="utf-8") as f:
             f.writelines(new_lines)
         if removed:
             logger.info("Removed '%s' from shopping list.", product)
@@ -72,13 +72,13 @@ class ShoppingService:
         message = "Liste de courses :\n" + "\n".join(f"- {item}" for item in items)
         url = (
             f"https://smsapi.free-mobile.fr/sendmsg"
-            f"?user={FREE_MOBILE_USER}&pass={FREE_MOBILE_API_KEY}"
+            f"?user={config.FREE_MOBILE_USER}&pass={config.FREE_MOBILE_API_KEY}"
             f"&msg={urllib.parse.quote(message)}"
         )
         try:
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
-                SHOPPING_LIST_FILE.write_text("", encoding="utf-8")
+                config.SHOPPING_LIST_FILE.write_text("", encoding="utf-8")
                 logger.info("SMS sent (%d items). Shopping list cleared.", len(items))
                 return True
             logger.error("SMS failed: HTTP %d.", response.status_code)
@@ -90,9 +90,9 @@ class ShoppingService:
     def add_item(self, product: str):
         if not self._is_configured():
             return
-        SHOPPING_LIST_FILE.parent.mkdir(parents=True, exist_ok=True)
+        config.SHOPPING_LIST_FILE.parent.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-        with open(SHOPPING_LIST_FILE, "a", encoding="utf-8") as f:
+        with open(config.SHOPPING_LIST_FILE, "a", encoding="utf-8") as f:
             f.write(f"- {product} (added {timestamp})\n")
         logger.info("Added '%s' to shopping list.", product)
 

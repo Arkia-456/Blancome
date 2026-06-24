@@ -10,7 +10,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QApplication, QMainWindow, QDialog, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QFileDialog, QTreeWidget, QTreeWidgetItem,
     QFrame, QHeaderView, QAbstractItemView, QSlider, QSizePolicy,
     QStyledItemDelegate, QStackedWidget, QListWidget, QListWidgetItem, QLineEdit,
@@ -23,6 +23,7 @@ import qtawesome as qta
 
 from assistant.music_service import music_service
 from assistant.shopping_service import shopping_service
+from assistant.settings_service import settings_service
 from assistant.calendar_service import calendar_service
 from assistant.microsoft_calendar_service import microsoft_calendar_service
 
@@ -441,6 +442,83 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
     height: 0px;
     border: none;
 }}
+
+/* ── Settings ───────────────────────────────────────────── */
+QLabel#settings_section {{
+    color: {_MUTED};
+    font-family: "Segoe UI";
+    font-size: 10pt;
+    font-weight: bold;
+    letter-spacing: 1px;
+    background: transparent;
+}}
+QLabel#settings_field_label {{
+    color: {_PLUM_SOFT};
+    font-family: "Segoe UI";
+    font-size: 12pt;
+    background: transparent;
+}}
+QLineEdit#settings_input {{
+    background: {_PEARL};
+    color: {_PLUM};
+    border: 1px solid {_PEARL_DEEP};
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: "Segoe UI";
+    font-size: 12pt;
+}}
+QLineEdit#settings_input:focus {{
+    border-color: {_GOLD};
+    outline: none;
+}}
+QLineEdit#settings_input:read-only {{
+    color: {_PLUM_SOFT};
+}}
+QPushButton#save_btn {{
+    background-color: {_PLUM};
+    color: {_PEARL};
+    border: none;
+    border-radius: 4px;
+    padding: 9px 28px;
+    font-family: "Segoe UI";
+    font-size: 12pt;
+    font-weight: bold;
+}}
+QPushButton#save_btn:hover {{
+    background-color: {_PLUM_SOFT};
+}}
+QPushButton#save_btn:disabled {{
+    background-color: {_MUTED};
+}}
+QPushButton#add_playlist_btn {{
+    background: transparent;
+    color: {_GOLD};
+    border: 1px dashed {_GOLD};
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-family: "Segoe UI";
+    font-size: 11pt;
+}}
+QPushButton#add_playlist_btn:hover {{
+    background-color: {_PEARL};
+}}
+
+/* ── Tooltip ────────────────────────────────────────────── */
+QToolTip {{
+    background-color: white;
+    color: {_PLUM};
+    border: 1px solid {_PEARL_DEEP};
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: "Segoe UI";
+    font-size: 11pt;
+}}
+
+/* ── Settings scroll area ───────────────────────────────── */
+QScrollArea#settings_scroll {{
+    background: {_CARD};
+    border: none;
+}}
 """
 
 
@@ -531,6 +609,7 @@ class NavButton(QPushButton):
         'music':    'fa6s.music',
         'shopping': 'fa6s.cart-shopping',
         'calendar': 'fa6s.calendar-days',
+        'settings': 'fa6s.gear',
     }
 
     def __init__(self, section: str, parent=None):
@@ -929,6 +1008,157 @@ class _CalendarToast(QWidget):
         p.drawText(12, ty, self._text)
 
 
+class _UnsavedChangesDialog(QDialog):
+    """Frameless confirmation dialog matching the app's card style."""
+
+    QUIT          = 1
+    SAVE_AND_QUIT = 2
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        self.setFixedWidth(430)
+        self.action = self.QUIT
+        self._setup_ui()
+
+    def _setup_ui(self):
+        # _PEARL_DEEP background bleeds through the 1-px margin as the border;
+        # the inner frame's border-radius creates the rounded-corner effect.
+        self.setStyleSheet(f"QDialog {{ background: {_PEARL_DEEP}; }}")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(1, 1, 1, 1)
+        outer.setSpacing(0)
+
+        inner = QFrame()
+        inner.setStyleSheet(f"QFrame {{ background: {_CARD}; border: none; border-radius: 3px; }}")
+        iv = QVBoxLayout(inner)
+        iv.setContentsMargins(0, 0, 0, 0)
+        iv.setSpacing(0)
+
+        band = QFrame()
+        band.setFixedHeight(5)
+        band.setStyleSheet(
+            f"background: {_GOLD}; border: none;"
+            " border-top-left-radius: 3px; border-top-right-radius: 3px;"
+        )
+        iv.addWidget(band)
+
+        body = QWidget()
+        body.setStyleSheet("background: transparent;")
+        bv = QVBoxLayout(body)
+        bv.setContentsMargins(30, 24, 30, 18)
+        bv.setSpacing(10)
+
+        title_lbl = QLabel("Modifications non enregistrées")
+        title_lbl.setStyleSheet(
+            f"color: {_PLUM}; font-family: Georgia; font-size: 15pt;"
+            " font-weight: bold; background: transparent;"
+        )
+        title_lbl.setWordWrap(True)
+
+        msg_lbl = QLabel(
+            "Vous avez des modifications non enregistrées dans les paramètres.\n"
+            "Voulez-vous quitter sans enregistrer ?"
+        )
+        msg_lbl.setStyleSheet(
+            f"color: {_PLUM_SOFT}; font-family: 'Segoe UI'; font-size: 12pt;"
+            " background: transparent;"
+        )
+        msg_lbl.setWordWrap(True)
+
+        bv.addWidget(title_lbl)
+        bv.addSpacing(4)
+        bv.addWidget(msg_lbl)
+        iv.addWidget(body)
+
+        sep = QFrame()
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background: {_PEARL_DEEP}; border: none;")
+        iv.addWidget(sep)
+
+        btn_bar = QWidget()
+        btn_bar.setStyleSheet("background: transparent;")
+        bh = QHBoxLayout(btn_bar)
+        bh.setContentsMargins(24, 16, 24, 20)
+        bh.setSpacing(10)
+
+        quit_btn = QPushButton("Quitter")
+        quit_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {_MUTED};
+                border: 1px solid {_PEARL_DEEP};
+                border-radius: 4px;
+                padding: 8px 14px;
+                font-family: "Segoe UI";
+                font-size: 11pt;
+            }}
+            QPushButton:hover {{
+                color: {_RUBY};
+                border-color: {_RUBY};
+                background: transparent;
+            }}
+        """)
+        quit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        quit_btn.clicked.connect(self._on_quit)
+
+        cancel_btn = QPushButton("Annuler")
+        cancel_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {_PLUM};
+                border: 1px solid {_PLUM};
+                border-radius: 4px;
+                padding: 8px 14px;
+                font-family: "Segoe UI";
+                font-size: 11pt;
+            }}
+            QPushButton:hover {{
+                background: {_PLUM};
+                color: {_PEARL};
+            }}
+        """)
+        cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        cancel_btn.clicked.connect(self.reject)
+
+        save_quit_btn = QPushButton("Enregistrer et quitter")
+        save_quit_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {_PLUM};
+                color: {_PEARL};
+                border: none;
+                border-radius: 4px;
+                padding: 8px 22px;
+                font-family: "Segoe UI";
+                font-size: 11pt;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: {_PLUM_SOFT};
+            }}
+        """)
+        save_quit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        save_quit_btn.setDefault(True)
+        save_quit_btn.clicked.connect(self._on_save_and_quit)
+
+        bh.addWidget(quit_btn)
+        bh.addStretch()
+        bh.addWidget(cancel_btn)
+        bh.addWidget(save_quit_btn)
+        iv.addWidget(btn_bar)
+
+        outer.addWidget(inner)
+
+    def _on_quit(self):
+        self.action = self.QUIT
+        self.accept()
+
+    def _on_save_and_quit(self):
+        self.action = self.SAVE_AND_QUIT
+        self.accept()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, on_close):
         super().__init__()
@@ -1019,10 +1249,12 @@ class MainWindow(QMainWindow):
         self._nav_music.setChecked(True)
         self._nav_shopping = NavButton("shopping")
         self._nav_calendar = NavButton("calendar")
+        self._nav_settings = NavButton("settings")
         v.addWidget(self._nav_music, alignment=Qt.AlignmentFlag.AlignHCenter)
         v.addWidget(self._nav_shopping, alignment=Qt.AlignmentFlag.AlignHCenter)
         v.addWidget(self._nav_calendar, alignment=Qt.AlignmentFlag.AlignHCenter)
         v.addStretch()
+        v.addWidget(self._nav_settings, alignment=Qt.AlignmentFlag.AlignHCenter)
         return sidebar
 
     def _make_content(self) -> QWidget:
@@ -1042,22 +1274,45 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(self._make_card())
         self._stack.addWidget(self._make_shopping_card())
         self._stack.addWidget(self._make_calendar_card())
+        self._stack.addWidget(self._make_settings_card())
         ca.addWidget(self._stack)
         h.addWidget(card_area, stretch=1)
 
         self._nav_music.clicked.connect(lambda: self._switch_page(0))
         self._nav_shopping.clicked.connect(lambda: self._switch_page(1))
         self._nav_calendar.clicked.connect(lambda: self._switch_page(2))
+        self._nav_settings.clicked.connect(lambda: self._switch_page(3))
 
         return content
 
     def _switch_page(self, index: int):
+        if self._stack.currentIndex() == 3 and index != 3 and self._settings_has_changes():
+            dlg = _UnsavedChangesDialog(self)
+            dlg.adjustSize()
+            geo = self.geometry()
+            dlg.move(
+                geo.x() + (geo.width()  - dlg.width())  // 2,
+                geo.y() + (geo.height() - dlg.height()) // 2,
+            )
+            if dlg.exec() != QDialog.DialogCode.Accepted:
+                # Annuler — restore nav state and stay on settings
+                self._nav_music.setChecked(False)
+                self._nav_shopping.setChecked(False)
+                self._nav_calendar.setChecked(False)
+                self._nav_settings.setChecked(True)
+                return
+            if dlg.action == _UnsavedChangesDialog.SAVE_AND_QUIT:
+                self._save_settings()
+
         self._stack.setCurrentIndex(index)
         self._nav_music.setChecked(index == 0)
         self._nav_shopping.setChecked(index == 1)
         self._nav_calendar.setChecked(index == 2)
+        self._nav_settings.setChecked(index == 3)
         if index == 1:
             self._refresh_shopping()
+        elif index == 3:
+            self._refresh_settings()
 
     def _make_card(self) -> QFrame:
         card = QFrame()
@@ -1729,6 +1984,340 @@ class MainWindow(QMainWindow):
         self._queue_tv = tv
         return tv
 
+    # ── Settings card ────────────────────────────────────────────────────
+
+    def _make_settings_card(self) -> QFrame:
+        card = QFrame()
+        card.setObjectName("card")
+        card.setMinimumWidth(400)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        v = QVBoxLayout(card)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(0)
+
+        gold_band = QFrame()
+        gold_band.setFixedHeight(6)
+        gold_band.setStyleSheet(f"background: {_GOLD}; border: none;")
+        v.addWidget(gold_band)
+
+        head = QFrame()
+        head.setObjectName("card_head")
+        hh = QHBoxLayout(head)
+        hh.setContentsMargins(30, 21, 30, 21)
+        title = QLabel("Paramètres")
+        title.setObjectName("music_title")
+        hh.addWidget(title)
+        hh.addStretch()
+        v.addWidget(head)
+
+        v.addWidget(_hsep())
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setObjectName("settings_scroll")
+
+        body_widget = QWidget()
+        body_widget.setObjectName("body")
+        bv = QVBoxLayout(body_widget)
+        bv.setContentsMargins(30, 28, 30, 28)
+        bv.setSpacing(28)
+
+        bv.addWidget(self._make_settings_free_mobile())
+        bv.addWidget(self._make_settings_shopping())
+        bv.addWidget(self._make_settings_playlists())
+        bv.addStretch()
+
+        scroll.setWidget(body_widget)
+        QScroller.grabGesture(scroll.viewport(), QScroller.ScrollerGestureType.TouchGesture)
+        v.addWidget(scroll, stretch=1)
+
+        v.addWidget(_hsep())
+        save_bar = QWidget()
+        save_bar.setObjectName("body")
+        save_bar.setFixedHeight(64)
+        sb = QHBoxLayout(save_bar)
+        sb.setContentsMargins(30, 0, 30, 0)
+        self._settings_save_btn = QPushButton("Enregistrer")
+        self._settings_save_btn.setObjectName("save_btn")
+        self._settings_save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._settings_save_btn.clicked.connect(self._save_settings)
+        sb.addStretch()
+        sb.addWidget(self._settings_save_btn)
+        v.addWidget(save_bar)
+
+        return card
+
+    def _make_settings_free_mobile(self) -> QWidget:
+        import config as _cfg
+        section = QWidget()
+        sv = QVBoxLayout(section)
+        sv.setContentsMargins(0, 0, 0, 0)
+        sv.setSpacing(10)
+
+        lbl = QLabel("FREE MOBILE")
+        lbl.setObjectName("settings_section")
+        sv.addWidget(lbl)
+        sv.addWidget(_hsep())
+        sv.addSpacing(4)
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(10)
+        grid.setColumnMinimumWidth(0, 120)
+
+        user_lbl = QLabel("Identifiant")
+        user_lbl.setObjectName("settings_field_label")
+        self._settings_user_edit = QLineEdit(_cfg.FREE_MOBILE_USER)
+        self._settings_user_edit.setObjectName("settings_input")
+        self._settings_user_edit.setPlaceholderText("Identifiant Free Mobile")
+        grid.addWidget(user_lbl, 0, 0, Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(self._settings_user_edit, 0, 1)
+
+        key_lbl = QLabel("Clé API")
+        key_lbl.setObjectName("settings_field_label")
+        self._settings_key_edit = QLineEdit(_cfg.FREE_MOBILE_API_KEY)
+        self._settings_key_edit.setObjectName("settings_input")
+        self._settings_key_edit.setPlaceholderText("Clé API Free Mobile")
+        self._settings_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+
+        show_btn = _IconButton('fa6s.eye', 32, 16, _MUTED, _GOLD, tooltip='Afficher / masquer')
+        show_btn.setCheckable(True)
+        show_btn.toggled.connect(
+            lambda checked: self._settings_key_edit.setEchoMode(
+                QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
+            )
+        )
+        key_row = QHBoxLayout()
+        key_row.setSpacing(6)
+        key_row.setContentsMargins(0, 0, 0, 0)
+        key_row.addWidget(self._settings_key_edit, stretch=1)
+        key_row.addWidget(show_btn)
+        grid.addWidget(key_lbl, 1, 0, Qt.AlignmentFlag.AlignVCenter)
+        grid.addLayout(key_row, 1, 1)
+
+        sv.addLayout(grid)
+        return section
+
+    def _make_settings_shopping(self) -> QWidget:
+        import config as _cfg
+        section = QWidget()
+        sv = QVBoxLayout(section)
+        sv.setContentsMargins(0, 0, 0, 0)
+        sv.setSpacing(10)
+
+        lbl = QLabel("LISTE DE COURSES")
+        lbl.setObjectName("settings_section")
+        sv.addWidget(lbl)
+        sv.addWidget(_hsep())
+        sv.addSpacing(4)
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(10)
+        grid.setColumnMinimumWidth(0, 120)
+
+        file_lbl = QLabel("Fichier")
+        file_lbl.setObjectName("settings_field_label")
+
+        self._settings_shopping_edit = QLineEdit(
+            str(_cfg.SHOPPING_LIST_FILE) if _cfg.SHOPPING_LIST_FILE else ""
+        )
+        self._settings_shopping_edit.setObjectName("settings_input")
+        self._settings_shopping_edit.setPlaceholderText("Chemin du fichier…")
+        self._settings_shopping_edit.setReadOnly(True)
+
+        browse_btn = _IconButton('fa6s.folder-open', 32, 18, _PLUM_SOFT, _GOLD, tooltip='Choisir…')
+        browse_btn.clicked.connect(self._browse_shopping_file)
+
+        file_row = QHBoxLayout()
+        file_row.setSpacing(6)
+        file_row.setContentsMargins(0, 0, 0, 0)
+        file_row.addWidget(self._settings_shopping_edit, stretch=1)
+        file_row.addWidget(browse_btn)
+        grid.addWidget(file_lbl, 0, 0, Qt.AlignmentFlag.AlignVCenter)
+        grid.addLayout(file_row, 0, 1)
+
+        sv.addLayout(grid)
+        return section
+
+    def _make_settings_playlists(self) -> QWidget:
+        import config as _cfg
+        section = QWidget()
+        sv = QVBoxLayout(section)
+        sv.setContentsMargins(0, 0, 0, 0)
+        sv.setSpacing(10)
+
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
+        header_row.setSpacing(8)
+        lbl = QLabel("PLAYLISTS")
+        lbl.setObjectName("settings_section")
+        lbl.setFixedWidth(110)  # matches name_edit width → ⓘ lands in same column
+        info_btn = _IconButton(
+            'fa6s.circle-info', 22, 13, _MUTED, _MUTED,
+            tooltip=(
+                "Ce nom est utilisé comme mot-clé de déclenchement vocal.\n"
+                "Ex. : \"musique ROCK\""
+            ),
+        )
+        info_btn.setCursor(Qt.CursorShape.ArrowCursor)
+        header_row.addWidget(lbl)
+        header_row.addWidget(info_btn)
+        header_row.addStretch()
+        sv.addLayout(header_row)
+        sv.addWidget(_hsep())
+        sv.addSpacing(4)
+
+        self._playlist_rows: list[dict] = []
+        self._playlists_container = QWidget()
+        self._playlists_layout = QVBoxLayout(self._playlists_container)
+        self._playlists_layout.setContentsMargins(0, 0, 0, 0)
+        self._playlists_layout.setSpacing(8)
+
+        for name, path in _cfg.PLAYLIST_FILES.items():
+            row_widget = self._make_playlist_row(name, str(path))
+            self._playlists_layout.addWidget(row_widget)
+
+        sv.addWidget(self._playlists_container)
+
+        add_btn = QPushButton("＋  Ajouter une playlist")
+        add_btn.setObjectName("add_playlist_btn")
+        add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        add_btn.clicked.connect(self._add_playlist_row)
+        sv.addWidget(add_btn, alignment=Qt.AlignmentFlag.AlignLeft)
+
+        return section
+
+    def _make_playlist_row(self, name: str = "", path: str = "") -> QWidget:
+        row = QWidget()
+        rl = QHBoxLayout(row)
+        rl.setContentsMargins(0, 0, 0, 0)
+        rl.setSpacing(8)
+
+        name_edit = QLineEdit(name.upper() if name else "")
+        name_edit.setObjectName("settings_input")
+        name_edit.setPlaceholderText("NOM")
+        name_edit.setFixedWidth(110)
+
+        path_edit = QLineEdit(path)
+        path_edit.setObjectName("settings_input")
+        path_edit.setPlaceholderText("Chemin du fichier…")
+        path_edit.setReadOnly(True)
+
+        browse_btn = _IconButton('fa6s.folder-open', 32, 18, _PLUM_SOFT, _GOLD, tooltip='Choisir…')
+        del_btn    = _IconButton('fa6s.xmark',       32, 16, _MUTED,      _RUBY, tooltip='Supprimer')
+
+        row_data = {"name_edit": name_edit, "path_edit": path_edit, "row": row}
+        browse_btn.clicked.connect(lambda: self._browse_playlist_file(path_edit))
+        del_btn.clicked.connect(lambda: self._remove_playlist_row(row_data))
+
+        rl.addWidget(name_edit)
+        rl.addWidget(path_edit, stretch=1)
+        rl.addWidget(browse_btn)
+        rl.addWidget(del_btn)
+
+        self._playlist_rows.append(row_data)
+        return row
+
+    def _add_playlist_row(self):
+        row_widget = self._make_playlist_row()
+        self._playlists_layout.addWidget(row_widget)
+
+    def _remove_playlist_row(self, row_data: dict):
+        if row_data in self._playlist_rows:
+            self._playlist_rows.remove(row_data)
+        row_data["row"].deleteLater()
+
+    def _browse_shopping_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choisir le fichier de liste de courses",
+            str(self._settings_shopping_edit.text()) or "",
+            "Fichiers texte (*.txt);;Tous les fichiers (*.*)",
+        )
+        if path:
+            self._settings_shopping_edit.setText(path)
+
+    def _browse_playlist_file(self, path_edit: QLineEdit):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Choisir un fichier de playlist",
+            str(path_edit.text()) or "",
+            _PLAYLIST_FILETYPES,
+        )
+        if path:
+            path_edit.setText(path)
+
+    def _refresh_settings(self):
+        import config as _cfg
+        self._settings_user_edit.setText(_cfg.FREE_MOBILE_USER)
+        self._settings_key_edit.setText(_cfg.FREE_MOBILE_API_KEY)
+        self._settings_shopping_edit.setText(
+            str(_cfg.SHOPPING_LIST_FILE) if _cfg.SHOPPING_LIST_FILE else ""
+        )
+
+        self._playlist_rows.clear()
+        while self._playlists_layout.count():
+            item = self._playlists_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        for name, path in _cfg.PLAYLIST_FILES.items():
+            row_widget = self._make_playlist_row(name, str(path))
+            self._playlists_layout.addWidget(row_widget)
+
+        self._settings_snapshot()
+
+    def _settings_snapshot(self):
+        self._settings_base = {
+            "user":      self._settings_user_edit.text(),
+            "api_key":   self._settings_key_edit.text(),
+            "shopping":  self._settings_shopping_edit.text(),
+            "playlists": [
+                (rd["name_edit"].text(), rd["path_edit"].text())
+                for rd in self._playlist_rows
+            ],
+        }
+
+    def _settings_has_changes(self) -> bool:
+        base = getattr(self, "_settings_base", None)
+        if base is None:
+            return False
+        return (
+            self._settings_user_edit.text()     != base["user"]     or
+            self._settings_key_edit.text()      != base["api_key"]  or
+            self._settings_shopping_edit.text() != base["shopping"] or
+            [
+                (rd["name_edit"].text(), rd["path_edit"].text())
+                for rd in self._playlist_rows
+            ] != base["playlists"]
+        )
+
+    def _save_settings(self):
+        user     = self._settings_user_edit.text().strip()
+        api_key  = self._settings_key_edit.text().strip()
+        shopping = self._settings_shopping_edit.text().strip()
+        playlists = {
+            rd["name_edit"].text().strip().upper(): rd["path_edit"].text().strip()
+            for rd in self._playlist_rows
+            if rd["name_edit"].text().strip() and rd["path_edit"].text().strip()
+        }
+
+        settings_service.save_all(user, api_key, shopping, playlists)
+        self._settings_snapshot()
+
+        self._settings_save_btn.setText("✓  Enregistré")
+        self._settings_save_btn.setEnabled(False)
+        self.setFocus()  # reclaim focus so Qt doesn't push it to the next input
+        QTimer.singleShot(2000, self._on_settings_saved)
+
+    def _on_settings_saved(self):
+        self._settings_save_btn.setText("Enregistrer")
+        self._settings_save_btn.setEnabled(True)
+
     # ── Slots ────────────────────────────────────────────────────────────
 
     def _open_playlist(self):
@@ -1876,6 +2465,8 @@ def run(on_close):
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet(_STYLESHEET)
+
+
     logger.info("QApplication ready — %.3fs", time.perf_counter() - _t)
 
     _t = time.perf_counter()

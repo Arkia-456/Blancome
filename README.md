@@ -64,6 +64,8 @@ cp .env.example .env
 
 On first run with calendar credentials configured, a browser window will open to complete OAuth authentication. Tokens are cached locally (`google_token.json` / `microsoft_token.json`) and refreshed automatically.
 
+> **Tip:** `PLAYLIST_*`, `FREE_MOBILE_*`, and `SHOPPING_LIST_FILE` can also be edited at runtime through the in-app Settings panel — no need to touch `.env` directly.
+
 ### 5. Run
 
 ```bash
@@ -105,11 +107,23 @@ Playlist names in commands match the suffix of the `PLAYLIST_<NAME>` env variabl
 
 ### UI
 
-The assistant launches a full-screen PyQt6 UI showing a clock, upcoming calendar events, a music player card, and a shopping list.
+The assistant launches a full-screen PyQt6 UI with a sidebar for navigation and a card area on the right. Touch scrolling is supported throughout.
+
+#### Music
+
+Controls playback, shows the current track and queue, and lets you load a playlist file directly from the UI.
+
+#### Shopping list
+
+Displays the list, lets you add and remove items, and sends the list via SMS with a single tap.
 
 #### Calendar
 
-The UI displays events from Google Calendar and/or Microsoft Outlook (whichever credentials are configured). Events are fetched on startup and refresh automatically. If neither calendar is configured the calendar panel is hidden.
+Displays events from Google Calendar and/or Microsoft Outlook (whichever credentials are configured). Events are fetched on startup and refresh automatically every 5 minutes.
+
+#### Settings
+
+A gear icon at the bottom of the sidebar opens the Settings panel. Changes are written back to `.env` and applied immediately without restarting.
 
 ---
 
@@ -127,6 +141,7 @@ assistant/
   microsoft_calendar_service.py # Microsoft/Outlook Calendar integration (MSAL)
   shopping_service.py           # Shopping list persistence
   music_service.py              # Music library helper
+  settings_service.py           # Reads and writes .env settings at runtime
 commands/
   base.py            # Abstract Command class
   music/             # Music control commands
