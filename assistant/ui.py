@@ -1275,7 +1275,7 @@ class VoiceStatusWidget(QWidget):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, listener, on_close):
+    def __init__(self, listener, on_close, on_progress=None):
         super().__init__()
         self._listener = listener
         self._on_close = on_close
@@ -1295,12 +1295,16 @@ class MainWindow(QMainWindow):
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
+
+        if on_progress: on_progress("En-tête…", 55)
         root.addWidget(self._make_header())
         root.addWidget(FrillWidget())
-        root.addWidget(self._make_content(), stretch=1)
+
+        root.addWidget(self._make_content(on_progress=on_progress), stretch=1)
 
         self._last_shopping_key: tuple | None = None
 
+        if on_progress: on_progress("Démarrage des services…", 93)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._update)
         self._timer.start(100)
@@ -1323,6 +1327,8 @@ class MainWindow(QMainWindow):
         self._voice_thread.ready.connect(self._on_voice_ready)
         self._voice_thread.failed.connect(self._on_voice_failed)
         self._voice_thread.start()
+
+        if on_progress: on_progress("Prêt.", 100)
 
     # ── Build helpers ────────────────────────────────────────────────────
 
@@ -1402,7 +1408,7 @@ class MainWindow(QMainWindow):
         v.addWidget(self._nav_settings, alignment=Qt.AlignmentFlag.AlignHCenter)
         return sidebar
 
-    def _make_content(self) -> QWidget:
+    def _make_content(self, on_progress=None) -> QWidget:
         content = QWidget()
         content.setObjectName("content")
 
@@ -1416,9 +1422,13 @@ class MainWindow(QMainWindow):
         ca = QHBoxLayout(card_area)
         ca.setContentsMargins(9, 12, 18, 12)
         self._stack = QStackedWidget()
+        if on_progress: on_progress("Musique…", 62)
         self._stack.addWidget(self._make_card())
+        if on_progress: on_progress("Liste de courses…", 72)
         self._stack.addWidget(self._make_shopping_card())
+        if on_progress: on_progress("Calendrier…", 80)
         self._stack.addWidget(self._make_calendar_card())
+        if on_progress: on_progress("Paramètres…", 88)
         self._stack.addWidget(self._make_settings_card())
         ca.addWidget(self._stack)
         h.addWidget(card_area, stretch=1)
@@ -2652,6 +2662,9 @@ class MainWindow(QMainWindow):
             self._voice_thread.failed.disconnect()
         except RuntimeError:
             pass
+        if self._voice_thread.isRunning():
+            self._voice_thread.terminate()
+            self._voice_thread.wait()
         if hasattr(self, "_cal_stop"):
             self._cal_stop.set()
         if hasattr(self, "_dots_stop"):
@@ -2660,18 +2673,27 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
-def run(listener, on_close):
+def run(listener, on_close, splash=None):
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("blancome.app")
     _t = time.perf_counter()
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setStyleSheet(_STYLESHEET)
 
+    if splash:
+        splash.step("Application configurée…", 45)
     logger.info("QApplication ready — %.3fs", time.perf_counter() - _t)
 
     _t = time.perf_counter()
-    window = MainWindow(listener=listener, on_close=on_close)
+
+    def _progress(msg: str, val: int):
+        if splash:
+            splash.step(msg, val)
+
+    window = MainWindow(listener=listener, on_close=on_close, on_progress=_progress)
     logger.info("MainWindow built — %.3fs", time.perf_counter() - _t)
 
+    if splash:
+        splash.finish(window)
     window.show()
     app.exec()
