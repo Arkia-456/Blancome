@@ -78,6 +78,12 @@ class MusicService:
             logger.warning("Could not add track: %s", path)
         return ok
 
+    def remove_track(self, index: int) -> bool:
+        ok = player.remove_track(index)
+        if ok:
+            logger.info("Removed track at index %d from queue.", index)
+        return ok
+
     def play_track(self, index: int):
         player.play_track(index)
 

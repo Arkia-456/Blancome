@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QFileDialog, QTreeWidget, QTreeWidgetItem,
     QFrame, QHeaderView, QAbstractItemView, QSlider, QSizePolicy,
     QStyledItemDelegate, QStackedWidget, QListWidget, QListWidgetItem, QLineEdit,
-    QScrollArea, QScroller,
+    QScrollArea, QScroller, QMenu,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, QPoint, QPropertyAnimation, pyqtSignal, pyqtProperty
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont, QPixmap
@@ -2023,6 +2023,8 @@ class MainWindow(QMainWindow):
         tv.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         tv.setItemDelegate(_QueueDelegate(tv))
         tv.itemClicked.connect(self._on_queue_click)
+        tv.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        tv.customContextMenuRequested.connect(self._on_queue_context_menu)
         QScroller.grabGesture(tv.viewport(), QScroller.ScrollerGestureType.TouchGesture)
         self._queue_scrolling = False
         QScroller.scroller(tv.viewport()).stateChanged.connect(self._on_queue_scroller_state)
@@ -2434,6 +2436,18 @@ class MainWindow(QMainWindow):
         idx = self._queue_tv.indexOfTopLevelItem(item)
         if idx >= 0:
             music_service.play_track(idx)
+
+    def _on_queue_context_menu(self, pos: QPoint):
+        item = self._queue_tv.itemAt(pos)
+        if item is None:
+            return
+        idx = self._queue_tv.indexOfTopLevelItem(item)
+        if idx < 0:
+            return
+        menu = QMenu(self._queue_tv)
+        remove_action = menu.addAction("Retirer de la file")
+        if menu.exec(self._queue_tv.viewport().mapToGlobal(pos)) == remove_action:
+            music_service.remove_track(idx)
 
     def _tick_clock(self):
         now = datetime.datetime.now()

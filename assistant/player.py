@@ -166,6 +166,26 @@ class MusicPlayer:
 			self._track_infos.append(info)
 		return True
 
+	def remove_track(self, index: int) -> bool:
+		with self._lock:
+			if not (0 <= index < len(self._tracks)):
+				return False
+			self._tracks.pop(index)
+			self._track_infos.pop(index)
+			if not self._tracks:
+				pygame.mixer.music.stop()
+				self._playing = False
+				self._paused = False
+				self._current_info = {}
+				self._index = 0
+			elif index == self._index:
+				if self._index >= len(self._tracks):
+					self._index = 0
+				self._play_current()
+			elif index < self._index:
+				self._index -= 1
+			return True
+
 	def play_track(self, index: int):
 		with self._lock:
 			if 0 <= index < len(self._tracks):
