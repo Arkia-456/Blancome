@@ -1356,9 +1356,11 @@ class MainWindow(QMainWindow):
         title.setObjectName("music_title")
         hh.addWidget(title)
         hh.addStretch()
-        send_btn = _IconButton('fa6s.paper-plane', 34, 28, _PLUM_SOFT, _GOLD, tooltip='Envoyer par SMS')
-        send_btn.clicked.connect(self._send_shopping_list)
-        hh.addWidget(send_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
+        import config as _cfg
+        self._shopping_send_btn = _IconButton('fa6s.paper-plane', 34, 28, _PLUM_SOFT, _GOLD, tooltip='Envoyer par SMS')
+        self._shopping_send_btn.clicked.connect(self._send_shopping_list)
+        self._shopping_send_btn.setVisible(bool(_cfg.FREE_MOBILE_USER and _cfg.FREE_MOBILE_API_KEY))
+        hh.addWidget(self._shopping_send_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
         v.addWidget(head)
 
         v.addWidget(_hsep())
@@ -2307,6 +2309,8 @@ class MainWindow(QMainWindow):
         }
 
         settings_service.save_all(user, api_key, shopping, playlists)
+        import config as _cfg
+        self._shopping_send_btn.setVisible(bool(_cfg.FREE_MOBILE_USER and _cfg.FREE_MOBILE_API_KEY))
         self._settings_snapshot()
 
         self._settings_save_btn.setText("✓  Enregistré")
