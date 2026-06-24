@@ -66,6 +66,18 @@ class MusicService:
     def get_queue(self) -> tuple[list[dict], int]:
         return player.get_queue()
 
+    def play(self):
+        player.play()
+
+    def add_track(self, path: str | Path) -> bool:
+        p = Path(path)
+        ok = player.add_track(p)
+        if ok:
+            logger.info("Added track to queue: %s", p.name)
+        else:
+            logger.warning("Could not add track: %s", path)
+        return ok
+
     def play_track(self, index: int):
         player.play_track(index)
 

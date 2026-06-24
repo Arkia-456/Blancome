@@ -678,6 +678,42 @@ class _QueueDelegate(QStyledItemDelegate):
         painter.restore()
 
 
+_AUDIO_EXTENSIONS = {".mp3", ".ogg", ".wav", ".flac", ".m4a", ".aac", ".wma", ".opus"}
+
+
+class _DroppableQueueWidget(QTreeWidget):
+    """QTreeWidget that accepts audio file drops from the OS file explorer."""
+
+    def __init__(self, on_drop):
+        super().__init__()
+        self.setAcceptDrops(True)
+        self._on_drop = on_drop
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            paths = [Path(u.toLocalFile()) for u in event.mimeData().urls()]
+            if any(p.suffix.lower() in _AUDIO_EXTENSIONS for p in paths):
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        paths = [
+            Path(u.toLocalFile())
+            for u in event.mimeData().urls()
+            if Path(u.toLocalFile()).suffix.lower() in _AUDIO_EXTENSIONS
+        ]
+        if paths:
+            self._on_drop(paths)
+        event.acceptProposedAction()
+
+
 _DOT_PURPLE = "#9B59B6"
 _DOT_YELLOW = "#F1E20F"
 _DOT_ORDER  = [_DOT_PURPLE, _DOT_YELLOW, _GOLD]  # display order: most specific first
@@ -1962,8 +1998,15 @@ class MainWindow(QMainWindow):
         h.addWidget(self._next_btn)
         return h
 
+    def _on_files_dropped(self, paths: list[Path]):
+        was_empty = not music_service.has_tracks()
+        for p in paths:
+            music_service.add_track(p)
+        if was_empty:
+            music_service.play()
+
     def _make_queue(self) -> QTreeWidget:
-        tv = QTreeWidget()
+        tv = _DroppableQueueWidget(self._on_files_dropped)
         tv.setObjectName("queue")
         tv.setColumnCount(3)
         tv.setHeaderHidden(True)

@@ -157,6 +157,15 @@ class MusicPlayer:
 				})
 			return result, self._index
 
+	def add_track(self, path: Path) -> bool:
+		if not path.exists():
+			return False
+		info = self._read_track_info(path)
+		with self._lock:
+			self._tracks.append(path)
+			self._track_infos.append(info)
+		return True
+
 	def play_track(self, index: int):
 		with self._lock:
 			if 0 <= index < len(self._tracks):
