@@ -1296,7 +1296,7 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        if on_progress: on_progress("En-tête…", 55)
+        if on_progress: on_progress(55)
         root.addWidget(self._make_header())
         root.addWidget(FrillWidget())
 
@@ -1304,7 +1304,7 @@ class MainWindow(QMainWindow):
 
         self._last_shopping_key: tuple | None = None
 
-        if on_progress: on_progress("Démarrage des services…", 93)
+        if on_progress: on_progress(93)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._update)
         self._timer.start(100)
@@ -1328,7 +1328,7 @@ class MainWindow(QMainWindow):
         self._voice_thread.failed.connect(self._on_voice_failed)
         self._voice_thread.start()
 
-        if on_progress: on_progress("Prêt.", 100)
+        if on_progress: on_progress(100)
 
     # ── Build helpers ────────────────────────────────────────────────────
 
@@ -1422,13 +1422,13 @@ class MainWindow(QMainWindow):
         ca = QHBoxLayout(card_area)
         ca.setContentsMargins(9, 12, 18, 12)
         self._stack = QStackedWidget()
-        if on_progress: on_progress("Musique…", 62)
+        if on_progress: on_progress(62)
         self._stack.addWidget(self._make_card())
-        if on_progress: on_progress("Liste de courses…", 72)
+        if on_progress: on_progress(72)
         self._stack.addWidget(self._make_shopping_card())
-        if on_progress: on_progress("Calendrier…", 80)
+        if on_progress: on_progress(80)
         self._stack.addWidget(self._make_calendar_card())
-        if on_progress: on_progress("Paramètres…", 88)
+        if on_progress: on_progress(88)
         self._stack.addWidget(self._make_settings_card())
         ca.addWidget(self._stack)
         h.addWidget(card_area, stretch=1)
@@ -2681,14 +2681,14 @@ def run(listener, on_close, splash=None):
     app.setStyleSheet(_STYLESHEET)
 
     if splash:
-        splash.step("Application configurée…", 45)
+        splash.step(45)
     logger.info("QApplication ready — %.3fs", time.perf_counter() - _t)
 
     _t = time.perf_counter()
 
-    def _progress(msg: str, val: int):
+    def _progress(val: int):
         if splash:
-            splash.step(msg, val)
+            splash.step(val)
 
     window = MainWindow(listener=listener, on_close=on_close, on_progress=_progress)
     logger.info("MainWindow built — %.3fs", time.perf_counter() - _t)

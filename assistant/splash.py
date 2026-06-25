@@ -1,3 +1,7 @@
+import json
+import random
+from pathlib import Path
+
 from PyQt6.QtWidgets import QApplication, QSplashScreen
 from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtGui import QPixmap, QColor, QPainter, QFont
@@ -8,6 +12,17 @@ _GOLD  = "#D9A227"
 _MUTED = "#A2929F"
 
 _W, _H = 500, 260
+
+_MESSAGES_FILE = Path(__file__).parent.parent / "loading_messages.json"
+
+def _load_steps() -> dict:
+    try:
+        data = json.loads(_MESSAGES_FILE.read_text(encoding="utf-8"))
+        return {int(k): v for k, v in data.items()}
+    except Exception:
+        return {}
+
+_STEPS = _load_steps()
 
 
 class AppSplash(QSplashScreen):
@@ -38,8 +53,9 @@ class AppSplash(QSplashScreen):
         p.end()
         return px
 
-    def step(self, message: str, value: int):
-        self._msg = message
+    def step(self, value: int):
+        pool = _STEPS.get(value, ["…"])
+        self._msg = random.choice(pool)
         self._value = value
         self.repaint()
         app = QApplication.instance()

@@ -44,16 +44,16 @@ def main():
         _splash.show()
         _app.processEvents()
 
-        _splash.step("Initialisation du cerveau…", 5)
+        _splash.step(5)
         brain = Brain(require_wake_word=True)
         logger.info("Brain ready — %.3fs", time.perf_counter() - _t0)
 
-        _splash.step("Initialisation des services audio…", 10)
+        _splash.step(10)
         listener = Listener(on_phrase=brain.handle)
         logger.info("Listener created — %.3fs", time.perf_counter() - _t0)
 
         _t2 = time.perf_counter()
-        _splash.step("Chargement de l'interface…", 15)
+        _splash.step(15)
         from assistant import ui
         logger.info("UI module imported — %.3fs", time.perf_counter() - _t2)
 
