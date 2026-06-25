@@ -46,6 +46,9 @@ class MusicService:
     def is_paused(self) -> bool:
         return player.is_paused()
 
+    def scan_playlist(self, path: str | Path) -> list:
+        return player.scan_playlist(Path(path))
+
     def load_playlist(self, path: str | Path):
         count = player.load_playlist(Path(path))
         if count > 0:
@@ -53,6 +56,18 @@ class MusicService:
             player.play()
         else:
             logger.warning("No playable tracks found in '%s'.", path)
+
+    def set_playlist(self, tracks: list, infos: list):
+        count = player.set_playlist(tracks, infos)
+        if count > 0:
+            logger.info("Set playlist with %d tracks.", count)
+        else:
+            logger.warning("set_playlist called with empty track list.")
+
+    def add_tracks_batch(self, tracks: list, infos: list) -> bool:
+        was_empty = player.add_tracks_batch(tracks, infos)
+        logger.info("Batch-added %d tracks.", len(tracks))
+        return was_empty
 
     def current_track_info(self) -> dict:
         return player.current_track_info()

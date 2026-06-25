@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QFileDialog, QTreeWidget, QTreeWidgetItem,
     QFrame, QHeaderView, QAbstractItemView, QSlider, QSizePolicy,
     QStyledItemDelegate, QStackedWidget, QListWidget, QListWidgetItem, QLineEdit,
-    QScrollArea, QScroller, QMenu, QGraphicsOpacityEffect,
+    QScrollArea, QScroller, QMenu, QGraphicsOpacityEffect, QProgressBar,
 )
 from PyQt6.QtCore import Qt, QTimer, QSize, QThread, QObject, QPoint, QPropertyAnimation, pyqtSignal, pyqtProperty
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QIcon, QBrush, QRadialGradient, QFont, QPixmap
@@ -1220,6 +1220,24 @@ class VoiceLoaderThread(QThread):
             self.failed.emit(str(exc))
 
 
+class _TrackLoaderThread(QThread):
+    progress = pyqtSignal(int, int)      # (loaded, total)
+    finished = pyqtSignal(object, object)  # (list[Path], list[dict])
+
+    def __init__(self, paths, parent=None):
+        super().__init__(parent)
+        self._paths = list(paths)
+
+    def run(self):
+        from assistant.player import MusicPlayer
+        infos = []
+        total = len(self._paths)
+        for i, path in enumerate(self._paths):
+            infos.append(MusicPlayer._read_track_info(path))
+            self.progress.emit(i + 1, total)
+        self.finished.emit(self._paths, infos)
+
+
 class VoiceStatusWidget(QWidget):
     retry_requested = pyqtSignal()
 
@@ -2067,6 +2085,25 @@ class MainWindow(QMainWindow):
         qv.setContentsMargins(0, 0, 0, 0)
         qv.setSpacing(0)
         qv.addWidget(self._make_queue())
+
+        self._load_overlay = QWidget()
+        self._load_overlay.setVisible(False)
+        _lo_v = QVBoxLayout(self._load_overlay)
+        _lo_v.setContentsMargins(16, 6, 16, 2)
+        _lo_v.setSpacing(4)
+        self._load_label = QLabel("Chargement…")
+        self._load_label.setStyleSheet(f"color: {_MUTED}; font-size: 10px;")
+        self._load_bar = QProgressBar()
+        self._load_bar.setFixedHeight(4)
+        self._load_bar.setTextVisible(False)
+        self._load_bar.setStyleSheet(
+            f"QProgressBar {{ background: {_PEARL_DEEP}; border: none; border-radius: 2px; }}"
+            f"QProgressBar::chunk {{ background: {_GOLD}; border-radius: 2px; }}"
+        )
+        _lo_v.addWidget(self._load_label)
+        _lo_v.addWidget(self._load_bar)
+        qv.addWidget(self._load_overlay)
+
         qv.addWidget(_hsep())
 
         total_row = QWidget()
@@ -2155,10 +2192,13 @@ class MainWindow(QMainWindow):
 
     def _on_files_dropped(self, paths: list[Path]):
         was_empty = not music_service.has_tracks()
-        for p in paths:
-            music_service.add_track(p)
-        if was_empty:
-            music_service.play()
+        if len(paths) > 20:
+            self._start_loader(paths, replace_queue=False, play_after=was_empty)
+        else:
+            for p in paths:
+                music_service.add_track(p)
+            if was_empty:
+                music_service.play()
 
     def _make_queue(self) -> QTreeWidget:
         tv = _DroppableQueueWidget(self._on_files_dropped)
@@ -2524,10 +2564,50 @@ class MainWindow(QMainWindow):
 
     # ── Slots ────────────────────────────────────────────────────────────
 
+    def _start_loader(self, tracks, replace_queue: bool, play_after: bool = True):
+        if hasattr(self, "_loader_thread") and self._loader_thread.isRunning():
+            try:
+                self._loader_thread.progress.disconnect()
+                self._loader_thread.finished.disconnect()
+            except RuntimeError:
+                pass
+            self._loader_thread.terminate()
+            self._loader_thread.wait()
+        self._loader_replace = replace_queue
+        self._loader_play_after = play_after
+        self._load_bar.setRange(0, len(tracks))
+        self._load_bar.setValue(0)
+        self._load_label.setText(f"Chargement… 0 / {len(tracks)}")
+        self._load_overlay.setVisible(True)
+        self._loader_thread = _TrackLoaderThread(tracks, parent=self)
+        self._loader_thread.progress.connect(self._on_load_progress)
+        self._loader_thread.finished.connect(self._on_load_finished)
+        self._loader_thread.start()
+
+    def _on_load_progress(self, current: int, total: int):
+        self._load_bar.setValue(current)
+        self._load_label.setText(f"Chargement… {current} / {total}")
+
+    def _on_load_finished(self, tracks, infos):
+        self._load_overlay.setVisible(False)
+        if self._loader_replace:
+            music_service.set_playlist(tracks, infos)
+            if tracks and self._loader_play_after:
+                music_service.play()
+        else:
+            music_service.add_tracks_batch(tracks, infos)
+            if self._loader_play_after and tracks:
+                music_service.play()
+
     def _open_playlist(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "Ouvrir une playlist", "", _PLAYLIST_FILETYPES)
-        if path:
+        if not path:
+            return
+        tracks = music_service.scan_playlist(path)
+        if len(tracks) > 20:
+            self._start_loader(tracks, replace_queue=True, play_after=True)
+        else:
             music_service.load_playlist(path)
 
     def _add_product(self):
@@ -2690,6 +2770,14 @@ class MainWindow(QMainWindow):
         if self._voice_thread.isRunning():
             self._voice_thread.terminate()
             self._voice_thread.wait()
+        if hasattr(self, "_loader_thread") and self._loader_thread.isRunning():
+            try:
+                self._loader_thread.progress.disconnect()
+                self._loader_thread.finished.disconnect()
+            except RuntimeError:
+                pass
+            self._loader_thread.terminate()
+            self._loader_thread.wait()
         if hasattr(self, "_cal_stop"):
             self._cal_stop.set()
         if hasattr(self, "_dots_stop"):

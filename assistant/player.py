@@ -83,7 +83,8 @@ class MusicPlayer:
 
     # ── Playlist management ───────────────────────────────────────────────
 
-    def load_playlist(self, playlist_path: Path) -> int:
+    def scan_playlist(self, playlist_path: Path) -> list[Path]:
+        """Return valid track paths from a playlist without loading metadata."""
         tracks = []
         playlist_dir = playlist_path.parent
         with open(playlist_path, encoding="utf-8") as f:
@@ -98,7 +99,10 @@ class MusicPlayer:
                     tracks.append(track)
                 else:
                     _logger.warning("Track not found: %s", track)
+        return tracks
 
+    def load_playlist(self, playlist_path: Path) -> int:
+        tracks = self.scan_playlist(playlist_path)
         infos = [self._read_track_info(t) for t in tracks]
         with self._lock:
             self._tracks = tracks
@@ -107,6 +111,30 @@ class MusicPlayer:
             self._reset_shuffle()
         _logger.info("Loaded %d tracks from playlist.", len(tracks))
         return len(tracks)
+
+    def set_playlist(self, tracks: list[Path], infos: list[dict]) -> int:
+        """Replace the queue with pre-loaded track data."""
+        with self._lock:
+            self._tracks = list(tracks)
+            self._track_infos = list(infos)
+            self._index = 0
+            self._reset_shuffle()
+        _logger.info("Playlist set with %d tracks.", len(tracks))
+        return len(tracks)
+
+    def add_tracks_batch(self, tracks: list[Path], infos: list[dict]) -> bool:
+        """Bulk-add pre-loaded tracks to the existing queue. Returns True if queue was empty before."""
+        with self._lock:
+            was_empty = not self._tracks
+            base = len(self._tracks)
+            self._tracks.extend(tracks)
+            self._track_infos.extend(infos)
+            if self._shuffle:
+                for i in range(base, len(self._tracks)):
+                    pos = random.randint(0, len(self._shuffle_remaining))
+                    self._shuffle_remaining.insert(pos, i)
+        _logger.info("Batch-added %d tracks.", len(tracks))
+        return was_empty
 
     def add_track(self, path: Path) -> bool:
         if not path.exists():
