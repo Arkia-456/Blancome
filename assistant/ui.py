@@ -2127,9 +2127,13 @@ class MainWindow(QMainWindow):
         self._next_btn = _IconButton('fa6s.forward-step', 66, 32, _PLUM, _AZURE_DEEP, _MUTED)
         self._next_btn.clicked.connect(music_service.next)
 
+        self._stop_btn = _IconButton('fa6s.stop', 66, 32, _PLUM, _RUBY, _MUTED, tooltip='Arrêter et vider la file')
+        self._stop_btn.clicked.connect(music_service.stop)
+
         h.addWidget(self._prev_btn)
         h.addWidget(self._play_btn)
         h.addWidget(self._next_btn)
+        h.addWidget(self._stop_btn)
         return h
 
     def _on_files_dropped(self, paths: list[Path]):
@@ -2609,6 +2613,7 @@ class MainWindow(QMainWindow):
         active = music_service.is_playing() or music_service.is_paused()
         self._prev_btn.setEnabled(active)
         self._next_btn.setEnabled(active)
+        self._stop_btn.setEnabled(active)
 
         tracks, idx = music_service.get_queue()
         key = (tuple(t["name"] for t in tracks), idx)
