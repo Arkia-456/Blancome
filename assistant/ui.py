@@ -2695,5 +2695,5 @@ def run(listener, on_close, splash=None):
 
     if splash:
         splash.finish(window)
-    window.show()
+    window.showMaximized()
     app.exec()
