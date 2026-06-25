@@ -87,5 +87,13 @@ class MusicService:
     def play_track(self, index: int):
         player.play_track(index)
 
+    def toggle_shuffle(self) -> bool:
+        state = player.toggle_shuffle()
+        logger.info("Shuffle %s.", "enabled" if state else "disabled")
+        return state
+
+    def is_shuffle(self) -> bool:
+        return player.is_shuffle()
+
 
 music_service = MusicService()

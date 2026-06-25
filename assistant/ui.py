@@ -576,8 +576,9 @@ class _IconButton(QPushButton):
     """Transparent icon-only button using a qtawesome glyph."""
 
     def __init__(self, icon_name, btn_size, icon_size, color, hover_color,
-                 disabled_color=None, tooltip='', parent=None):
+                 disabled_color=None, active_color=None, tooltip='', parent=None):
         super().__init__(parent)
+        self._active = False
         self.setFixedSize(btn_size, btn_size)
         self.setStyleSheet("QPushButton{background:transparent;border:none;padding:0px;}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -586,12 +587,20 @@ class _IconButton(QPushButton):
         self._px          = qta.icon(icon_name, color=color).pixmap(QSize(icon_size, icon_size))
         self._px_hover    = qta.icon(icon_name, color=hover_color).pixmap(QSize(icon_size, icon_size))
         self._px_disabled = qta.icon(icon_name, color=disabled_color or _MUTED).pixmap(QSize(icon_size, icon_size))
+        self._px_active   = qta.icon(icon_name, color=active_color or hover_color).pixmap(QSize(icon_size, icon_size))
+
+    def set_active(self, active: bool):
+        if self._active != active:
+            self._active = active
+            self.update()
 
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if not self.isEnabled():
             px = self._px_disabled
+        elif self._active:
+            px = self._px_active
         elif self.underMouse():
             px = self._px_hover
         else:
@@ -2118,6 +2127,10 @@ class MainWindow(QMainWindow):
         h.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         h.setSpacing(12)
 
+        self._shuffle_btn = _IconButton('fa6s.shuffle', 66, 32, _PLUM, _AZURE_DEEP, _MUTED,
+                                        active_color=_RUBY, tooltip='Lecture aléatoire')
+        self._shuffle_btn.clicked.connect(self._toggle_shuffle)
+
         self._prev_btn = _IconButton('fa6s.backward-step', 66, 32, _PLUM, _AZURE_DEEP, _MUTED)
         self._prev_btn.clicked.connect(music_service.previous)
 
@@ -2130,11 +2143,15 @@ class MainWindow(QMainWindow):
         self._stop_btn = _IconButton('fa6s.stop', 66, 32, _PLUM, _RUBY, _MUTED, tooltip='Arrêter et vider la file')
         self._stop_btn.clicked.connect(music_service.stop)
 
+        h.addWidget(self._shuffle_btn)
         h.addWidget(self._prev_btn)
         h.addWidget(self._play_btn)
         h.addWidget(self._next_btn)
         h.addWidget(self._stop_btn)
         return h
+
+    def _toggle_shuffle(self):
+        music_service.toggle_shuffle()
 
     def _on_files_dropped(self, paths: list[Path]):
         was_empty = not music_service.has_tracks()
@@ -2611,6 +2628,9 @@ class MainWindow(QMainWindow):
         self._play_btn.set_playing(music_service.is_playing())
 
         active = music_service.is_playing() or music_service.is_paused()
+        has_tracks = music_service.has_tracks()
+        self._shuffle_btn.setEnabled(has_tracks)
+        self._shuffle_btn.set_active(music_service.is_shuffle())
         self._prev_btn.setEnabled(active)
         self._next_btn.setEnabled(active)
         self._stop_btn.setEnabled(active)
