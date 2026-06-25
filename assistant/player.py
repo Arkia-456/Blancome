@@ -39,6 +39,8 @@ class MusicPlayer:
                 with self._lock:
                     if self._playing and not self._paused and not pygame.mixer.music.get_busy():
                         self._advance()
+            except pygame.error:
+                return  # mixer shut down (app exit), watcher exits cleanly
             except Exception:
                 _log.exception("Error in music watcher thread")
 
