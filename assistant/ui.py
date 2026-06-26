@@ -40,7 +40,11 @@ _DATE_FG    = "#CBB9D6"
 _MUTED      = "#A2929F"
 _ACTIVE_BG  = "#D0E8FA"
 
-_ICON = Path(__file__).parent.parent / "assets" / "icon.ico"
+_ICON = (
+    Path(sys._MEIPASS) / "assets" / "icon.ico"
+    if getattr(sys, "frozen", False)
+    else Path(__file__).parent.parent / "assets" / "icon.ico"
+)
 _PLAYLIST_FILETYPES = "Fichiers playlist (*.m3u *.m3u8 *.txt);;Tous les fichiers (*.*)"
 
 _FR_DAYS   = ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"]

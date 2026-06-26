@@ -2,3 +2,11 @@ __pycache__/
 models
 .env
 *_token.json
+
+# PyInstaller
+build/
+dist/
+*.tmp
+
+# Release packages
+Blancome-*.zip

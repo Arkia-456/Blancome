@@ -3,7 +3,13 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Absolute base dir: next to the exe when packaged, project root in development.
+# Used for user files (.env, OAuth tokens) that live outside the bundle.
+APP_DIR: Path = (
+    Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+)
+
+load_dotenv(APP_DIR / ".env")
 
 FREE_MOBILE_USER = os.getenv("FREE_MOBILE_USER", "")
 FREE_MOBILE_API_KEY = os.getenv("FREE_MOBILE_API_KEY", "")
@@ -19,19 +25,15 @@ SHOPPING_LIST_FILE = Path(_shopping_list) if _shopping_list else None
 
 GOOGLE_CLIENT_ID     = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_TOKEN_FILE    = Path("google_token.json")
+GOOGLE_TOKEN_FILE    = APP_DIR / "google_token.json"
 
 MICROSOFT_CLIENT_ID  = os.getenv("MICROSOFT_CLIENT_ID", "")
-MICROSOFT_TOKEN_FILE = Path("microsoft_token.json")
+MICROSOFT_TOKEN_FILE = APP_DIR / "microsoft_token.json"
 
 
 def reload():
-    """Re-read .env and update all module-level values in place.
-
-    Uses sys.modules so that code doing `import config; config.X` sees the
-    new values immediately — without restarting the process.
-    """
-    load_dotenv(override=True)
+    """Re-read .env and update all module-level values in place."""
+    load_dotenv(APP_DIR / ".env", override=True)
     m = sys.modules[__name__]
     m.FREE_MOBILE_USER    = os.getenv("FREE_MOBILE_USER", "")
     m.FREE_MOBILE_API_KEY = os.getenv("FREE_MOBILE_API_KEY", "")

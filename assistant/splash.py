@@ -1,5 +1,6 @@
 import json
 import random
+import sys
 from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication, QSplashScreen
@@ -13,7 +14,11 @@ _MUTED = "#A2929F"
 
 _W, _H = 500, 260
 
-_MESSAGES_FILE = Path(__file__).parent.parent / "loading_messages.json"
+_MESSAGES_FILE = (
+    Path(sys._MEIPASS) / "loading_messages.json"
+    if getattr(sys, "frozen", False)
+    else Path(__file__).parent.parent / "loading_messages.json"
+)
 
 def _load_steps() -> dict:
     try:

@@ -1,6 +1,8 @@
 import logging
+import sys
 import threading
 import time
+from pathlib import Path
 
 import sounddevice
 import queue
@@ -25,7 +27,11 @@ class Listener:
     def load_model(self):
         """Load the Vosk model. Blocking — call from a background thread."""
         _t = time.perf_counter()
-        self._model = Model("models/vosk-model")
+        if getattr(sys, "frozen", False):
+            _model_path = str(Path(sys._MEIPASS) / "models/vosk-model")
+        else:
+            _model_path = "models/vosk-model"
+        self._model = Model(_model_path)
         logger.info("Vosk model loaded — %.3fs", time.perf_counter() - _t)
         _t = time.perf_counter()
         self._recognizer = KaldiRecognizer(self._model, 16000)

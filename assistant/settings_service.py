@@ -6,7 +6,7 @@ import config
 
 logger = logging.getLogger(__name__)
 
-_ENV_PATH = Path(__file__).parent.parent / ".env"
+_ENV_PATH = config.APP_DIR / ".env"
 
 
 class SettingsService:
