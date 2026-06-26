@@ -30,7 +30,8 @@ class Listener:
         if getattr(sys, "frozen", False):
             _model_path = str(Path(sys._MEIPASS) / "models/vosk-model")
         else:
-            _model_path = "models/vosk-model"
+            _model_path = str(Path(__file__).parent.parent / "models/vosk-model")
+        logger.info("Loading voice model from: %s (exists: %s)", _model_path, Path(_model_path).exists())
         self._model = Model(_model_path)
         logger.info("Vosk model loaded — %.3fs", time.perf_counter() - _t)
         _t = time.perf_counter()

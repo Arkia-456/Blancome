@@ -1221,6 +1221,7 @@ class VoiceLoaderThread(QThread):
             self._listener.load_model()
             self.ready.emit()
         except Exception as exc:
+            logger.exception("Voice model failed to load")
             self.failed.emit(str(exc))
 
 

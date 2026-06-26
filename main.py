@@ -1,15 +1,29 @@
+import datetime
 import logging
 import sys
 import threading
 import time
-from assistant.brain import Brain
-from assistant.listener import Listener
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(levelname)-8s %(name)s — %(message)s",
-    datefmt="%H:%M:%S",
-)
+
+def _setup_logging():
+    import config
+    log_dir = config.APP_DIR / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    fmt = logging.Formatter(
+        "[%(asctime)s] %(levelname)-8s %(name)s — %(filename)s:%(lineno)d — %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    log_file = log_dir / datetime.date.today().strftime("%Y%m%d.log")
+    file_h = logging.FileHandler(log_file, encoding="utf-8")
+    file_h.setLevel(logging.DEBUG)
+    file_h.setFormatter(fmt)
+    root.addHandler(file_h)
+
 
 def _install_excepthook(logger):
     def _hook(exc_type, exc_value, exc_tb):
@@ -28,11 +42,16 @@ def _install_excepthook(logger):
         )
     threading.excepthook = _thread_hook
 
+
 def main():
+    _setup_logging()
     logger = logging.getLogger(__name__)
     _install_excepthook(logger)
     logger.info("Starting Blancome...")
     _t0 = time.perf_counter()
+
+    from assistant.brain import Brain
+    from assistant.listener import Listener
 
     if sys.platform == "win32":
         # QApplication must exist before any Qt widget — create it before heavy imports
@@ -91,6 +110,7 @@ def main():
             listener.stop()
             t.join()
             logger.info("Blancome stopped.")
+
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,9 @@ models
 # User settings (contains API keys)
 settings.json
 
+# Logs
+logs/
+
 # PyInstaller
 build/
 dist/
