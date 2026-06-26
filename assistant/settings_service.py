@@ -1,128 +1,62 @@
+import json
 import logging
-import re
-from pathlib import Path
-from dotenv import set_key, unset_key
 import config
 
 logger = logging.getLogger(__name__)
 
-_ENV_PATH = config.APP_DIR / ".env"
-
 
 class SettingsService:
-    """Reads and writes .env settings.
+    def _read(self) -> dict:
+        try:
+            return json.loads(config.SETTINGS_FILE.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {}
+        except Exception:
+            return {}
 
-    Each method is self-contained so it can be called from a voice command
-    without going through the UI.
-    """
+    def _write(self, data: dict):
+        tmp = config.SETTINGS_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(config.SETTINGS_FILE)
+        config.reload()
 
-    # ── Individual setters (voice-command friendly) ──────────────────────
+    # ── Batch save (used by the settings UI) ─────────────────────────────
+
+    def save_all(self, user: str, api_key: str, shopping_path: str, playlists: dict) -> None:
+        data = self._read()
+        data["free_mobile_user"]    = user
+        data["free_mobile_api_key"] = api_key
+        data["shopping_list_file"]  = shopping_path
+        data["playlists"]           = {k: v for k, v in playlists.items() if k and v}
+        self._write(data)
+        logger.info("All settings saved.")
+
+    # ── Individual setters (voice-command friendly) ───────────────────────
 
     def set_free_mobile(self, user: str, api_key: str) -> None:
-        set_key(_ENV_PATH, "FREE_MOBILE_USER", user)
-        set_key(_ENV_PATH, "FREE_MOBILE_API_KEY", api_key)
-        config.reload()
+        data = self._read()
+        data["free_mobile_user"]    = user
+        data["free_mobile_api_key"] = api_key
+        self._write(data)
         logger.info("Free Mobile credentials updated.")
 
     def set_shopping_list(self, path: str) -> None:
-        set_key(_ENV_PATH, "SHOPPING_LIST_FILE", path)
-        config.reload()
+        data = self._read()
+        data["shopping_list_file"] = path
+        self._write(data)
         logger.info("Shopping list file set to: %s", path)
 
     def add_playlist(self, name: str, path: str) -> None:
-        set_key(_ENV_PATH, f"PLAYLIST_{name.strip().upper()}", path)
-        config.reload()
+        data = self._read()
+        data.setdefault("playlists", {})[name.strip().upper()] = path
+        self._write(data)
         logger.info("Playlist '%s' added.", name)
 
     def remove_playlist(self, name: str) -> None:
-        unset_key(_ENV_PATH, f"PLAYLIST_{name.strip().upper()}")
-        config.reload()
+        data = self._read()
+        data.setdefault("playlists", {}).pop(name.strip().upper(), None)
+        self._write(data)
         logger.info("Playlist '%s' removed.", name)
-
-    # ── Batch save (used by the settings UI) ────────────────────────────
-
-    def save_all(
-        self,
-        user: str,
-        api_key: str,
-        shopping_path: str,
-        playlists: dict,
-    ) -> None:
-        """Write all settings in a single atomic file operation.
-
-        Calling set_key() repeatedly causes PermissionError on Windows because
-        each call renames a temp file onto .env, and Windows briefly holds a
-        lock on the file between renames. Writing once avoids this entirely.
-        """
-        updates = {
-            "FREE_MOBILE_USER":    user,
-            "FREE_MOBILE_API_KEY": api_key,
-            "SHOPPING_LIST_FILE":  shopping_path,
-        }
-        for name, path in playlists.items():
-            if name and path:
-                updates[f"PLAYLIST_{name}"] = path
-
-        # Any existing PLAYLIST_ key not present in updates should be removed.
-        to_remove = {
-            k for k in self._read_keys() if k.startswith("PLAYLIST_") and k not in updates
-        }
-
-        self._atomic_write(updates, to_remove)
-        config.reload()
-        logger.info("All settings saved.")
-
-    # ── Internal helpers ─────────────────────────────────────────────────
-
-    _KEY_RE = re.compile(r'^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=')
-
-    def _read_keys(self) -> list:
-        try:
-            lines = _ENV_PATH.read_text(encoding="utf-8").splitlines()
-        except FileNotFoundError:
-            return []
-        keys = []
-        for line in lines:
-            m = self._KEY_RE.match(line)
-            if m:
-                keys.append(m.group(1))
-        return keys
-
-    @staticmethod
-    def _quote(value: str) -> str:
-        return f'"{value}"' if " " in value or "\t" in value else value
-
-    def _atomic_write(self, updates: dict, to_remove: set) -> None:
-        """Read .env, apply all updates/removals in one pass, write once."""
-        try:
-            lines = _ENV_PATH.read_text(encoding="utf-8").splitlines(keepends=True)
-        except FileNotFoundError:
-            lines = []
-
-        handled: set = set()
-        result: list = []
-
-        for line in lines:
-            m = self._KEY_RE.match(line)
-            if m:
-                key = m.group(1)
-                if key in to_remove:
-                    handled.add(key)
-                    continue  # drop the line
-                if key in updates:
-                    result.append(f"{key}={self._quote(updates[key])}\n")
-                    handled.add(key)
-                    continue
-            result.append(line)
-
-        # Append keys that were not already in the file
-        for key, val in updates.items():
-            if key not in handled:
-                result.append(f"{key}={self._quote(val)}\n")
-
-        tmp = _ENV_PATH.with_suffix(".tmp_save")
-        tmp.write_text("".join(result), encoding="utf-8")
-        tmp.replace(_ENV_PATH)
 
 
 settings_service = SettingsService()

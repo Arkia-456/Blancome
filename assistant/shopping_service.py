@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class ShoppingService:
     def _is_configured(self) -> bool:
         if config.SHOPPING_LIST_FILE is None:
-            logger.error("SHOPPING_LIST_FILE is not configured. Set it in your .env file.")
+            logger.error("SHOPPING_LIST_FILE is not configured. Set it in Settings.")
             return False
         return True
 

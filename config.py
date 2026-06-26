@@ -1,49 +1,58 @@
+import json
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
 
 # Absolute base dir: next to the exe when packaged, project root in development.
-# Used for user files (.env, OAuth tokens) that live outside the bundle.
+# Used for user files (settings, OAuth tokens) that live outside the bundle.
 APP_DIR: Path = (
     Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 )
 
-load_dotenv(APP_DIR / ".env")
+SETTINGS_FILE:       Path = APP_DIR / "settings.json"
+GOOGLE_TOKEN_FILE:   Path = APP_DIR / "google_token.json"
+MICROSOFT_TOKEN_FILE: Path = APP_DIR / "microsoft_token.json"
 
-FREE_MOBILE_USER = os.getenv("FREE_MOBILE_USER", "")
-FREE_MOBILE_API_KEY = os.getenv("FREE_MOBILE_API_KEY", "")
-
-PLAYLIST_FILES = {
-    key[len("PLAYLIST_"):]: Path(value)
-    for key, value in os.environ.items()
-    if key.startswith("PLAYLIST_") and value
+_DEFAULTS: dict = {
+    "free_mobile_user":    "",
+    "free_mobile_api_key": "",
+    "shopping_list_file":  "",
+    "playlists":           {},
+    "google_client_id":    "",
+    "google_client_secret": "",
+    "microsoft_client_id": "",
 }
 
-_shopping_list = os.getenv("SHOPPING_LIST_FILE", "")
-SHOPPING_LIST_FILE = Path(_shopping_list) if _shopping_list else None
 
-GOOGLE_CLIENT_ID     = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_TOKEN_FILE    = APP_DIR / "google_token.json"
+def _load() -> dict:
+    try:
+        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8-sig"))
+        return {**_DEFAULTS, **data}
+    except FileNotFoundError:
+        return dict(_DEFAULTS)
+    except Exception:
+        return dict(_DEFAULTS)
 
-MICROSOFT_CLIENT_ID  = os.getenv("MICROSOFT_CLIENT_ID", "")
-MICROSOFT_TOKEN_FILE = APP_DIR / "microsoft_token.json"
+
+_s = _load()
+
+FREE_MOBILE_USER     = _s["free_mobile_user"]
+FREE_MOBILE_API_KEY  = _s["free_mobile_api_key"]
+SHOPPING_LIST_FILE   = Path(_s["shopping_list_file"]) if _s["shopping_list_file"] else None
+PLAYLIST_FILES       = {k: Path(v) for k, v in _s.get("playlists", {}).items() if v}
+GOOGLE_CLIENT_ID     = _s["google_client_id"]
+GOOGLE_CLIENT_SECRET = _s["google_client_secret"]
+MICROSOFT_CLIENT_ID  = _s["microsoft_client_id"]
 
 
 def reload():
-    """Re-read .env and update all module-level values in place."""
-    load_dotenv(APP_DIR / ".env", override=True)
+    """Re-read settings.json and update all module-level values in place."""
     m = sys.modules[__name__]
-    m.FREE_MOBILE_USER    = os.getenv("FREE_MOBILE_USER", "")
-    m.FREE_MOBILE_API_KEY = os.getenv("FREE_MOBILE_API_KEY", "")
-    m.PLAYLIST_FILES = {
-        key[len("PLAYLIST_"):]: Path(value)
-        for key, value in os.environ.items()
-        if key.startswith("PLAYLIST_") and value
-    }
-    _sl = os.getenv("SHOPPING_LIST_FILE", "")
-    m.SHOPPING_LIST_FILE  = Path(_sl) if _sl else None
-    m.GOOGLE_CLIENT_ID    = os.getenv("GOOGLE_CLIENT_ID", "")
-    m.GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-    m.MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID", "")
+    s = _load()
+    m.FREE_MOBILE_USER     = s["free_mobile_user"]
+    m.FREE_MOBILE_API_KEY  = s["free_mobile_api_key"]
+    m.SHOPPING_LIST_FILE   = Path(s["shopping_list_file"]) if s["shopping_list_file"] else None
+    m.PLAYLIST_FILES       = {k: Path(v) for k, v in s.get("playlists", {}).items() if v}
+    m.GOOGLE_CLIENT_ID     = s["google_client_id"]
+    m.GOOGLE_CLIENT_SECRET = s["google_client_secret"]
+    m.MICROSOFT_CLIENT_ID  = s["microsoft_client_id"]

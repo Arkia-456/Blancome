@@ -3,6 +3,9 @@ models
 .env
 *_token.json
 
+# User settings (contains API keys)
+settings.json
+
 # PyInstaller
 build/
 dist/
